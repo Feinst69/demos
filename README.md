@@ -1,10 +1,10 @@
 # DEMOS
 
 ## Auteurs
-Alexander
-Arthur
-Mahmoud
-Tanjona
+Alexander  
+Arthur  
+Mahmoud  
+Tanjona  
 
 ## Contexte
 
