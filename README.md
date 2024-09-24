@@ -15,6 +15,7 @@ Cependant, une part significative de la population choisit de ne pas voter lors 
 ## Origines des données
 
 Les données utilisées dans ce projet proviennent de l’enquête sur la participation électorale (2017). Elles comprennent:  
+
 **Code** : Code des départements français, incluant la Corse-du-Sud (2A) et la Haute-Corse (2B).  
 **HLM** : Part des locataires HLM dans les résidences principales en France en 2014.  
 **Salairemoy** : Salaire net horaire moyen en France pour l'année 2015.  
