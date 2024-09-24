@@ -39,3 +39,10 @@ Pour mener à bien cette analyse, R a été exclusivement utilisé avec ses diff
 **ggcorrplot** : utilisé pour visualiser les matrices de corrélation de manière intuitive.  
 **reshape2** : utile pour manipuler les données en les mettant en forme longue ou large, facilitant ainsi l'analyse et la visualisation.  
 
+## ANALYSE
+### Exploration des données
+### Analyse des variables
+### Reduction des données
+### Modélisation des régressions par rapport au taux d'abstention
+### Création de cluster
+
