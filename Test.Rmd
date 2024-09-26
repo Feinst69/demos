@@ -1,0 +1,140 @@
+---
+title: "Kickoff 2"
+output: html_document
+date: "2024-09-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(corrplot)
+library(compositions)
+
+data_abs <- read_excel("C:/Users/tanjo/Desktop/Laplateforme/Kick Off 2 Election/data_abs.xlsx")
+# Supprimer la troisième colonne
+data_abs <- data_abs[ , -3]
+head(data_abs)
+```
+```{r}
+#AFFICHAGE D'UN PLOT
+ggplot(data_abs, aes(x = Ouvrier))+
+  geom_bar()
+```
+```{r}
+#J'ESSAIE DE FAIRE DESCRIBE
+summary(data_abs)
+
+```
+```{r}
+# Créer le bar plot et le stocker dans une variable 'p'
+p <- ggplot(data = data_abs, aes(x = reorder(Department, Salairemoy), y = Salairemoy)) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black") +
+  labs(title = "Salaire moyen par département", x = "Département", y = "Salaire moyen") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotation des étiquettes pour les rendre lisibles
+
+# Enregistrer l'image en format PNG
+ggsave("salaire_par_departement.png", plot = p, width = 8, height = 6, dpi = 300)
+
+```
+
+
+```{r}
+
+# Obtenir tous les noms de colonnes sauf "Department"
+variables <- setdiff(names(data_abs), "Department")
+
+# Créer une boucle pour générer un bar plot pour chaque variable
+for (var in variables) {
+  
+  # Créer un bar plot pour la variable actuelle
+  p <- ggplot(data = data_abs, aes(x = "Department", y = var)) +
+    geom_bar(stat = "identity", fill = "steelblue", color = "black") +
+    labs(title = paste("Bar plot de", var, "par département"), 
+         x = "Département", y = var) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotation des étiquette
+  
+  # Enregistrer chaque plot dans un fichier PNG
+  ggsave(paste0("barplot_", var, ".png"), plot = p, width = 8, height = 6, dpi = 300)
+}
+
+```
+
+```{r}
+# Sélectionner les colonnes numériques sauf 'Department'
+numeric_cols <- setdiff(names(data_abs), "Department")
+
+# Calculer les corrélations avec 'txabs'
+correlation_matrix <- cor(data_abs[ , numeric_cols], use = "complete.obs")
+
+# Afficher la corrélation entre txabs et les autres variables
+cor_txabs <- correlation_matrix["txabs", ]
+print(cor_txabs)
+
+# Ouvrir un dispositif graphique pour enregistrer en PNG
+png("mon_graphe.png", width = 800, height = 600)
+
+# Insérer ici le code pour générer le graphique
+corrplot(correlation_matrix, method = "color", type = "upper", tl.cex = 0.8,
+         tl.col = "black", addCoef.col = "black", number.cex = 0.7)
+
+print(cor_txabs)
+
+corrplot(correlation_matrix, method = "color", type = "upper", tl.cex = 0.8,
+         tl.col = "black", addCoef.col = "black", number.cex = 0.7)
+# Fermer le dispositif graphique et enregistrer l'image PNG
+dev.off()
+
+```
+```{r}
+# Créer une boucle pour faire des scatter plots entre txabs et les autres variables avec une régression linéaire
+for (var in numeric_cols) {
+  if (var != "txabs") {  # Éviter de comparer txabs avec lui-même
+    
+    # Utiliser aes_string pour passer les noms de colonnes dynamiquement
+    p <- ggplot(data_abs, aes_string(x = var, y = "txabs")) +
+      geom_point(color = "blue") +  # Ajouter les points
+      geom_smooth(method = "lm", color = "red", se = FALSE) +  # Ajouter la régression linéaire en rouge
+      labs(title = paste("Relation entre txabs et", var), 
+           x = var, y = "txabs") +
+      theme_minimal()
+
+    # Enregistrer chaque scatter plot avec la ligne de régression
+    ggsave(paste0("scatter_txabs_", var, ".png"), plot = p, width = 8, height = 6, dpi = 300)
+  }
+}
+```
+```{r}
+# Sélectionner les colonnes à transformer
+selected_data <- data_abs[, c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")]
+print(selected_data)
+```
+```{r}
+# Appliquer la transformation CLR
+clr_data <- clr(selected_data)
+
+# Afficher les données transformées
+print(clr_data)
+```
+
+
+```{r}
+# Effectuer une analyse en composantes principales (PCA) sur les données CLR
+pca_clr <- prcomp(clr_data)
+
+# Afficher les résultats de l'ACP
+summary(pca_clr)
+
+```
+
+```{r}
+print(pca_clr)
+```
+```{r}
+plot(pca_clr$x[, 1], pca_clr$x[, 5], xlab = "PC1", ylab = "PC2")
+
+```
+
