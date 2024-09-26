@@ -174,6 +174,18 @@ head(final_df)
 ```
 
 ```{r}
+final_df <- scale(final_df,center = TRUE,scale=TRUE)
+
+```
+
+
+```{r}
+
+```
+
+
+
+```{r}
 # Réaliser une ACP sur toutes les variables (CLR + autres quantitatives)
 res.pca <- PCA(final_df, graph = FALSE)
 
@@ -292,11 +304,138 @@ fviz_pca_biplot(res.pca,
                 )
 ```
 
+###
+
+```{r}
+# Créer des catégories basées sur la répartition du taux d'abstention
+df$Groupes_Abstention <- cut(df$txabs, 
+                             breaks = c(-Inf, 20, 25, Inf), 
+                             labels = c("Faible abstention", "Abstention moyenne", "Forte abstention"))
+
+# Vérifier les premières lignes
+head(df$Groupes_Abstention)
+```
+
+
+```{r}
+# Visualiser avec l'habillage basé sur le taux d'abstention
+fviz_pca_ind(res.pca, 
+             habillage = df$Groupes_Abstention,  # Colorer par le taux d'abstention
+             addEllipses = TRUE,                 # Ajouter des ellipses autour des groupes
+             ellipse.level = 0.68,               # Niveau de confiance pour les ellipses
+             palette = "Dark2") +                # Palette de couleurs
+  theme_minimal()
+```
+
+
+
+```{r}
+if (!require(factoextra)) install.packages("factoextra")
+if (!require(cluster)) install.packages("cluster")
+
+library(factoextra)
+library(cluster)
+```
+
+
+
+```{r}
+# Détermination du nombre optimal de clusters avec la méthode du coude
+fviz_nbclust(final_df, kmeans, method = "wss") + 
+    geom_vline(xintercept = 4, linetype = 2) +  # Ajuster le xintercept selon le résultat
+    labs(title = "Détermination du Nombre Optimal de Clusters",
+         x = "Nombre de Clusters",
+         y = "Somme des Carrés Intra-Cluster (WSS)") +
+    theme_minimal()
+
+```
+
+
+```{r}
+# Calcul de l'indice de silhouette pour différents nombres de clusters
+fviz_nbclust(final_df, kmeans, method = "silhouette") +
+    labs(title = "Détermination du Nombre Optimal de Clusters avec la Méthode de la Silhouette",
+         x = "Nombre de Clusters",
+         y = "Largeur Moyenne de la Silhouette") +
+    theme_minimal()
+
+```
+
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+kmeans_result <- kmeans(final_df, centers = 2, nstart = 25)
+
+fviz_cluster(kmeans_result, data = final_df)
+```
+
+
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+k2 <- kmeans(final_df, centers = 2, nstart = 25)
+k3 <- kmeans(final_df, centers = 3, nstart = 25)
+k5 <- kmeans(final_df, centers = 5, nstart = 25)
+
+# plots to compare
+p1 <- fviz_cluster(k2, geom = "point", data = final_df) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = final_df) + ggtitle("k = 3")
+p3 <- fviz_cluster(k5, geom = "point",  data = final_df) + ggtitle("k = 5")
+p4 <- fviz_cluster(kmeans_result, geom = "point",  data = final_df) + ggtitle("k = 4")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3,p4, nrow = 2)
+
+```
+
+
+
+```{r}
+# Ajouter la colonne de cluster à df
+df$cluster <- factor(kmeans_result$cluster)
+```
+
+
+
+```{r}
+
+# Liste des variables quantitatives à visualiser (en excluant la colonne 'cluster')
+liste_variable_quanti <- c("PI", "Cadres", "Agri", "Employe", "Artisant", "Ouvrier", "TxPauv", "txcho", "txabs")
+
+# Pour chaque variable quantitative, créer un boxplot par rapport à cluster
+for (col in liste_variable_quanti) {
+  p <- ggplot(df, aes(x = cluster, y = .data[[col]], fill = cluster)) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = paste("Boxplot de", col, "par cluster"), x = "Cluster", y = col) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Incliner le texte de l'axe X
+          plot.title = element_text(hjust = 0.5))  # Centrer le titre
+
+  # Afficher le boxplot
+  print(p)
+}
+```
 
 
 
 
 
+```{r}
+# Pour chaque variable quantitative, créer un boxplot par rapport à cluster
+for (col in liste_variable_quanti) {
+  p <- ggplot(df, aes(x = .data[[col]], y = txabs, col =cluster, fill = cluster)) +
+    geom_point() +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = paste("Boxplot de", col, "par cluster"), x = col, y = "txabs") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Incliner le texte de l'axe X
+          plot.title = element_text(hjust = 0.5))  # Centrer le titre
+
+  # Afficher le boxplot
+  print(p)
+}
+```
 
 
 
@@ -308,8 +447,35 @@ fviz_pca_biplot(res.pca,
 
 
 ```{r}
+ggplot(df, aes(x = factor(cluster), fill = Groupes_Abstention)) +
+    geom_bar(position = "dodge") +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = "Répartition des taux d'abstention par cluster",
+         x = "Cluster",
+         y = "Absention") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X
+```
+
+
+
+
+
+
+## Regression linéaire
+
+
+
+
+```{r}
+head(final_df)
+```
+
+
+
+```{r}
 # Sélectionner les variables basées sur les résultats de l'ACP
-variables_retenues <- df[, c("txabs", "PI", "Cadres", "Agri", "Employe", "Artisant", "Salairemoy", "Ouvrier", "txcho")]
+variables_retenues <- final_df[, c("txabs", "PI", "Cadres", "Agri", "Employe", "Artisant", "Salairemoy", "Ouvrier", "txcho")]
 
 # Vérifier les premières lignes pour s'assurer que les données sont correctes
 head(variables_retenues)
@@ -317,10 +483,37 @@ head(variables_retenues)
 
 
 ```{r}
-# Première régression avec PI, Cadres, et Agri
-modele_groupe1 <- lm(txabs ~ PI + Cadres + Agri, data = variables_retenues)
+# Première régression 
+modele_groupe1 <- lm(txabs ~ PI + Cadres + Agri + Employe + Artisant + Salairemoy + Ouvrier + txcho, data = variables_retenues)
 summary(modele_groupe1)
 ```
+
+
+```{r}
+# Première régression
+modele_groupe2 <- lm(txabs ~ ., data = final_df)
+summary(modele_groupe2)
+```
+
+```{r}
+plot(modele_groupe1)
+```
+
+
+
+
+```{r}
+plot(modele_groupe2)
+
+```
+
+
+
+
+
+
+
+
 
 
 
