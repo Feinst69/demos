@@ -1,0 +1,327 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+## Importation des données
+
+```{r}
+install.packages("ggcorrplot")
+```
+
+
+Importation des librairies
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggcorrplot)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(compositions)
+library(FactoMineR)
+library(factoextra)
+```
+
+
+chargement des fichiers
+```{r}
+df <- read_excel("data_abs.xlsx")
+```
+
+Afficher les premières lignes
+```{r}
+head(df)
+```
+
+
+Données statistiques
+```{r}
+summary(df)
+```
+
+## Analyse univarié
+
+
+```{r}
+# Distribution du taux d'abstention (TxAbs)
+ggplot(df, aes(x = txabs)) + 
+  geom_histogram(binwidth = 1, fill = "red", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux d'abstention", x = "Taux d'abstention", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+Le graphique montre la répartition du taux d'abstention dans les différents départements.
+On peut observer que la plupart des départements ont un taux d'abstention compris entre 15% et 25%.
+
+
+```{r}
+# Distribution du taux de pauvreté (TxPauv)
+ggplot(df, aes(x = TxPauv)) + 
+  geom_histogram(binwidth = 1, fill = "gray", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de pauvreté", x = "Taux de pauvreté", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+La plupart des départements ont un taux de pauvreté entre 10% et 20%. 
+
+
+
+```{r}
+# Distribution du taux de chômage (txcho)
+ggplot(df, aes(x = txcho)) + 
+  geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de chômage", x = "Taux de chômage", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+Le taux de chômage varie significativement entre les départements, avec des valeurs principalement comprises entre 6% et 15%.
+
+
+## Analyse bivariée
+
+
+```{r}
+# Relation entre le taux d'abstention et le taux de pauvreté
+ggplot(df, aes(x = TxPauv, y = txabs)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de pauvreté en fonction du Taux d'abstention", x = "Taux de pauvreté", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+
+Il y a une corrélation positive entre le taux de pauvreté et le taux d'abstention.
+
+
+```{r}
+# Relation entre le taux d'abstention et le taux de chômage
+ggplot(df, aes(x = txcho, y = txabs)) +
+  geom_point(color = "green") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de chômage vs Taux d'abstention", x = "Taux de chômage", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+Il y a aussi une corrélation positive entre le taux de chômage et le taux d'abstention. 
+
+
+
+
+
+```{r}
+# Relation entre le taux d'abstention et le salaire moyen
+ggplot(df, aes(x = Salairemoy, y = txabs)) +
+  geom_point(color = "purple") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Salaire moyen vs Taux d'abstention", x = "Salaire moyen", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+
+Il semble que les départements avec un salaire moyen plus bas aient tendance à avoir un taux d'abstention plus fort.
+
+
+```{r}
+# Sélectionner uniquement les colonnes numériques
+df_numeric <- df[, sapply(df, is.numeric)]
+
+# Créer la matrice de corrélation uniquement avec les variables numériques
+corr_matrix <- cor(df_numeric, use = "complete.obs")
+
+# Transformer la matrice de corrélation en format long (nécessaire pour ggplot2)
+melted_corr_matrix <- melt(corr_matrix)
+
+# Créer la heatmap avec ggplot2
+ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Corrélation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10)) +
+  coord_fixed() +
+  labs(title = "Matrice de corrélation")
+```
+## données compositionnelles
+
+
+```{r}
+# Sélectionner les variables compositionnelles du jeu de données
+compositional_vars <- df[, c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")]
+
+# Appliquer la transformation CLR
+clr_data <- clr(compositional_vars)
+
+# Convertir le résultat en data frame
+clr_df <- as.data.frame(clr_data)
+
+# Afficher les premières lignes des données CLR
+head(clr_df)
+```
+
+```{r}
+# Sélectionner les autres variables quantitatives
+other_vars <- df[, c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho", "txabs")]
+
+# Combiner les données CLR transformées avec ces autres variables quantitatives
+final_df <- cbind(clr_df, other_vars)
+
+# Afficher les premières lignes du data frame combiné
+head(final_df)
+```
+
+```{r}
+# Réaliser une ACP sur toutes les variables (CLR + autres quantitatives)
+res.pca <- PCA(final_df, graph = FALSE)
+
+# Résumé des résultats de l'ACP
+summary(res.pca)
+```
+
+
+```{r}
+# Visualiser la variance expliquée par chaque composante (scree plot)
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 50))
+```
+
+Le scree plot montre que les deux premières composantes principales (Dim 1 et Dim 2) expliquent ensemble 59.8 % de la variance totale (33.8 % pour Dim 1 et 26 % pour Dim 2). Cela signifie que ces deux dimensions capturent l'essentiel de l'information dans les données, ce qui justifie leur utilisation pour une analyse simplifiée.
+
+
+```{r}
+# Visualiser les variables sur le plan factoriel
+fviz_pca_var(res.pca, col.var = "contrib", 
+             gradient.cols = c("blue", "yellow", "red"),
+             repel = TRUE)
+```
+
+Le cercle des corrélations illustre les relations entre les variables et les deux premières composantes principales. Les variables PI, Cadres, et Agri contribuent fortement à Dim 1, tandis que Employe, Artisant, et Salairemoy dominent Dim 2. Les flèches proches représentent des corrélations entre les variables, par exemple, Artisant, Ouvrier, et txcho sont fortement corrélés et liés à des métiers manuels et des difficultés socio-économiques.
+
+
+```{r}
+# Contribution des variables à la première composante (Dim 1)
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 10)
+```
+
+
+Les variables PI, Cadres, et Agri contribuent le plus à la première composante principale (Dim 1), indiquant que cette dimension capture surtout des informations liées aux professions intermédières, aux cadres et à l’agriculture.
+
+```{r}
+# Extraire les contributions des variables à Dim 1
+contrib_dim1 <- res.pca$var$contrib[,1]
+
+# Créer un dataframe avec les contributions
+df_contrib <- data.frame(Variable = names(contrib_dim1), Contribution = contrib_dim1)
+
+# Trier par ordre décroissant et garder les 10 premières contributions
+df_contrib <- df_contrib[order(df_contrib$Contribution, decreasing = TRUE),]
+df_contrib_top10 <- df_contrib[1:10,]
+
+# Visualisation avec ggplot2
+library(ggplot2)
+ggplot(df_contrib_top10, aes(x = reorder(Variable, Contribution), y = Contribution)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = paste0(round(Contribution, 1), "%")), 
+            vjust = -0.5, size = 3.5) +  # Ajouter les pourcentages sur les barres
+  labs(title = "Contribution des variables à la première composante (Dim 1)",
+       x = "Variable", 
+       y = "Contribution (%)") +
+  theme_minimal() +
+  coord_flip()  # Inverser les axes pour une meilleure lisibilité
+```
+
+
+
+```{r}
+# Contribution des variables à la deuxième composante (Dim 2)
+fviz_contrib(res.pca, choice = "var", axes = 2, top = 10)
+```
+
+
+Les variables Employe, Artisant, Salairemoy, et Ouvrier dominent la contribution à la deuxième composante principale (Dim 2), indiquant que cette dimension est principalement axée sur des profession subordonnée et des métiers manuels, avec une influence notable du chômage (txcho).
+
+
+```{r}
+# Extraire les contributions des variables à Dim 2
+contrib_dim2 <- res.pca$var$contrib[,2]
+
+# Créer un dataframe avec les contributions
+df_contrib_dim2 <- data.frame(Variable = names(contrib_dim2), Contribution = contrib_dim2)
+
+# Trier par ordre décroissant et garder les 10 premières contributions
+df_contrib_dim2 <- df_contrib_dim2[order(df_contrib_dim2$Contribution, decreasing = TRUE),]
+df_contrib_dim2_top10 <- df_contrib_dim2[1:10,]
+
+# Visualisation avec ggplot2
+library(ggplot2)
+ggplot(df_contrib_dim2_top10, aes(x = reorder(Variable, Contribution), y = Contribution)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = paste0(round(Contribution, 1), "%")), 
+            vjust = -0.5, size = 3.5) +  # Ajouter les pourcentages sur les barres
+  labs(title = "Contribution des variables à la deuxième composante (Dim 2)",
+       x = "Variable", 
+       y = "Contribution (%)") +
+  theme_minimal() +
+  coord_flip()  # Inverser les axes pour une meilleure lisibilité
+```
+
+
+```{r}
+# Contribution des variables à la deuxième composante (Dim 2)
+fviz_contrib(res.pca, choice = "var", axes = 3, top = 10)
+```
+
+
+```{r}
+# Filtrer les individus avec cos² > 50%
+ind_cos2 <- apply(res.pca$ind$cos2, 1, max) > 0.5
+
+# Filtrer les variables avec cos² > 50%
+var_cos2 <- apply(res.pca$var$cos2, 1, max) > 0.5
+
+# Créer un graphique combiné des individus et des variables
+fviz_pca_biplot(res.pca,
+                select.ind = list(cos2 = 0.5), # Sélectionner les individus avec cos² > 50%
+                select.var = list(cos2 = 0.5), # Sélectionner les variables avec cos² > 50%
+                repel = TRUE, # Éviter le chevauchement des étiquettes
+                title = "Biplot des Individus et des Variables (cos² > 50%)",
+                col.ind = "blue", # Couleur des individus
+                col.var = "red" # Couleur des variables
+                )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# Sélectionner les variables basées sur les résultats de l'ACP
+variables_retenues <- df[, c("txabs", "PI", "Cadres", "Agri", "Employe", "Artisant", "Salairemoy", "Ouvrier", "txcho")]
+
+# Vérifier les premières lignes pour s'assurer que les données sont correctes
+head(variables_retenues)
+```
+
+
+```{r}
+# Première régression avec PI, Cadres, et Agri
+modele_groupe1 <- lm(txabs ~ PI + Cadres + Agri, data = variables_retenues)
+summary(modele_groupe1)
+```
+
+
+
+
