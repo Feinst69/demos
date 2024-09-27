@@ -328,6 +328,106 @@ fviz_pca_ind(res.pca,
 ```
 
 
+### reduc2
+
+
+```{r}
+# Filtrer uniquement les variables sélectionnées dans un nouveau dataframe
+final_df_reduit <- final_df[, c("PI", "HLM", "Employe", "Salairemoy", "txcho", "TxPauv")]
+
+# Réaliser une ACP sur les variables sélectionnées
+res.pca_reduit <- PCA(final_df_reduit, graph = FALSE)
+
+# Résumé des résultats de l'ACP
+summary(res.pca_reduit)
+```
+
+
+
+```{r}
+# Visualiser la variance expliquée par chaque composante (scree plot)
+fviz_eig(res.pca_reduit, addlabels = TRUE, ylim = c(0, 50))
+```
+
+
+
+```{r}
+# Afficher la visualisation de l'ACP
+fviz_pca_var(res.pca_reduit, col.var = "contrib", gradient.cols = c("blue", "yellow", "red"), repel = TRUE)
+
+```
+
+
+```{r}
+# Contribution des variables à la première composante (Dim 1)
+fviz_contrib(res.pca_reduit, choice = "var", axes = 1, top = 10)
+```
+
+
+```{r}
+# Contribution des variables à la deuxième composante (Dim 2)
+fviz_contrib(res.pca_reduit, choice = "var", axes = 2, top = 10)
+```
+
+```{r}
+# Contribution des variables à la première composante (Dim 1)
+fviz_contrib(res.pca_reduit, choice = "var", axes = 3, top = 10)
+```
+
+
+
+```{r}
+# Filtrer les individus avec cos² > 50%
+ind_cos2 <- apply(res.pca_reduit$ind$cos2, 1, max) > 0.5
+
+# Filtrer les variables avec cos² > 50%
+var_cos2 <- apply(res.pca_reduit$var$cos2, 1, max) > 0.5
+
+# Créer un graphique combiné des individus et des variables
+fviz_pca_biplot(res.pca_reduit,
+                select.ind = list(cos2 = 0.5), # Sélectionner les individus avec cos² > 50%
+                select.var = list(cos2 = 0.5), # Sélectionner les variables avec cos² > 50%
+                repel = TRUE, # Éviter le chevauchement des étiquettes
+                title = "Biplot des Individus et des Variables (cos² > 50%)",
+                col.ind = "blue", # Couleur des individus
+                col.var = "red" # Couleur des variables
+                )
+```
+
+```{r}
+# Visualiser avec l'habillage basé sur le taux d'abstention
+fviz_pca_ind(res.pca_reduit, 
+             habillage = df$Groupes_Abstention,  # Colorer par le taux d'abstention
+             addEllipses = TRUE,                 # Ajouter des ellipses autour des groupes
+             ellipse.level = 0.68,               # Niveau de confiance pour les ellipses
+             palette = "Dark2") +                # Palette de couleurs
+  theme_minimal()
+```
+
+
+
+
+
+
+
+
+
+```{r}
+# Pour voir les résultats des individus (projections)
+fviz_pca_ind(res.pca_reduit, geom.ind = "point", col.ind = "cos2", gradient.cols = c("blue", "yellow", "red"), repel = TRUE)
+```
+
+
+
+
+
+###
+
+
+
+
+
+
 
 ```{r}
 if (!require(factoextra)) install.packages("factoextra")
@@ -509,12 +609,118 @@ plot(modele_groupe2)
 
 
 
+## colinearité
+
+```{r}
+library(car)
+vif(lm(txabs ~ PI + Cadres + Agri + Employe + Artisant + Salairemoy + txcho, data = variables_retenues))
+```
+
+
+## regression logistique
+
+
+```{r}
+# Créer une copie de final_df
+final_df_copy <- final_df
+
+# Créer une nouvelle variable binaire dans la copie avec le seuil de 20%
+final_df_copy$groupe_abstention_20 <- ifelse(final_df_copy$txabs <= 20, "Faible", "Forte")
+
+# Assurer que la nouvelle variable est un facteur
+final_df_copy$groupe_abstention_20 <- factor(final_df_copy$groupe_abstention_20, levels = c("Faible", "Forte"))
+
+# Vérifier la répartition des groupes dans la copie
+table(final_df_copy$groupe_abstention_20)
+```
+
+```{r}
+# Appliquer la régression logistique binaire pour prédire groupe_abstention_20
+logit_model <- glm(groupe_abstention_20 ~ PI + Cadres + Agri + Employe + Artisant + Salairemoy + txcho,
+                   data = df, family = binomial)
+
+# Résumer le modèle
+summary(logit_model)
+
+# Obtenir les coefficients
+coef(logit_model)
+
+# Prédire la probabilité d'appartenir au groupe "Forte"
+pred_prob <- predict(logit_model, type = "response")
+
+# Ajouter les prédictions dans le dataframe
+df$pred_prob <- pred_prob
+
+# Afficher les premières lignes des prédictions
+head(df[, c("groupe_abstention_20", "pred_prob")])
+
+```
+
+
+```{r}
+# Charger la librairie pROC pour la courbe ROC
+library(pROC)
+
+# Tracer la courbe ROC
+roc_curve <- roc(df$groupe_abstention_20, pred_prob, levels = c("Faible", "Forte"))
+
+# Afficher la courbe ROC
+plot(roc_curve)
+
+# Calculer l'AUC
+auc(roc_curve)
+
+```
+
+```{r}
+# Calculer et afficher l'AUC
+auc_value <- auc(roc_curve)
+print(auc_value)
+
+```
+
+```{r}
+# Appliquer la régression logistique binaire pour prédire groupe_abstention_20
+logit_model <- glm(groupe_abstention_20 ~ PI + HLM + Employe + Salairemoy + txcho + TxPauv,
+                   data = df, family = binomial)
+
+# Résumer le modèle
+summary(logit_model)
+
+# Obtenir les coefficients
+coef(logit_model)
+
+# Prédire la probabilité d'appartenir au groupe "Forte"
+pred_prob <- predict(logit_model, type = "response")
+
+# Ajouter les prédictions dans le dataframe
+df$pred_prob <- pred_prob
+
+# Afficher les premières lignes des prédictions
+head(df[, c("groupe_abstention_20", "pred_prob")])
+```
+
+```{r}
+# Charger la librairie pROC pour la courbe ROC
+library(pROC)
+
+# Tracer la courbe ROC
+roc_curve <- roc(df$groupe_abstention_20, pred_prob, levels = c("Faible", "Forte"))
+
+# Afficher la courbe ROC
+plot(roc_curve)
+
+# Calculer l'AUC
+auc(roc_curve)
+```
 
 
 
-
-
-
+```{r}
+# Calculer et afficher l'AUC
+auc_value <- auc(roc_curve)
+print(auc_value)
+```
 
 
 
