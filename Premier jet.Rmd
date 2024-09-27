@@ -1,0 +1,320 @@
+---
+title: "DEMOS"
+output:
+  html_document:
+    data_abs_print: paged
+---
+
+# Importation des librairies
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggcorrplot)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(compositions)
+```
+# Chargement des données et exploration
+```{r}
+data_abs <- read_excel("C:/Users/tanjo/Desktop/Laplateforme/Kick Off 2 Election/data_abs.xlsx")
+head(data_abs)
+```
+```{r}
+summary(data_abs)
+```
+## Analyse univarié
+```{r}
+# Distribution du taux d'abstention (TxAbs)
+ggplot(data_abs, aes(x = txabs)) + 
+  geom_histogram(binwidth = 1, fill = "red", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux d'abstention", x = "Taux d'abstention", y = "Nombre de départements") +
+  theme_minimal()
+```
+Le graphique montre la répartition du taux d'abstention dans les différents départements.
+On peut observer que la plupart des départements ont un taux d'abstention compris entre 15% et 25%.
+
+```{r}
+# Distribution du taux de pauvreté (TxPauv)
+ggplot(data_abs, aes(x = TxPauv)) + 
+  geom_histogram(binwidth = 1, fill = "gray", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de pauvreté", x = "Taux de pauvreté", y = "Nombre de départements") +
+  theme_minimal()
+```
+La plupart des départements ont un taux de pauvreté entre 10% et 20%.
+
+```{r}
+# Distribution du taux de chômage (txcho)
+ggplot(data_abs, aes(x = txcho)) + 
+  geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de chômage", x = "Taux de chômage", y = "Nombre de départements") +
+  theme_minimal()
+```
+Le taux de chômage varie significativement entre les départements, avec des valeurs principalement comprises entre 6% et 15%.
+
+## Analyse bivariée
+
+
+```{r}
+# Relation entre le taux d'abstention et le taux de pauvreté
+ggplot(data_abs, aes(x = TxPauv, y = txabs)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de pauvreté en fonction du Taux d'abstention", x = "Taux de pauvreté", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+
+Il y a une corrélation positive entre le taux de pauvreté et le taux d'abstention.
+
+
+```{r}
+# Relation entre le taux d'abstention et le taux de chômage
+ggplot(data_abs, aes(x = txcho, y = txabs)) +
+  geom_point(color = "green") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de chômage vs Taux d'abstention", x = "Taux de chômage", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+Il y a aussi une corrélation positive entre le taux de chômage et le taux d'abstention. 
+
+
+
+
+
+```{r}
+# Relation entre le taux d'abstention et le salaire moyen
+ggplot(data_abs, aes(x = Salairemoy, y = txabs)) +
+  geom_point(color = "purple") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Salaire moyen vs Taux d'abstention", x = "Salaire moyen", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+
+Il semble que les départements avec un salaire moyen plus bas aient tendance à avoir un taux d'abstention plus fort.
+
+
+```{r}
+# Sélectionner uniquement les colonnes numériques
+data_abs_numeric <- data_abs[, sapply(data_abs, is.numeric)]
+
+# Créer la matrice de corrélation uniquement avec les variables numériques
+corr_matrix <- cor(data_abs_numeric, use = "complete.obs")
+
+# Transformer la matrice de corrélation en format long (nécessaire pour ggplot2)
+melted_corr_matrix <- melt(corr_matrix)
+
+# Créer la heatmap avec ggplot2
+ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Corrélation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10)) +
+  coord_fixed() +
+  labs(title = "Matrice de corrélation")
+```
+```{r}
+# Calculer les coefficients de corrélation pour chaque variable par rapport à txabs
+correlations <- cor(final_data_abs, use = "complete.obs")  # Matrice de corrélation pour les variables numériques
+
+# Extraire uniquement les corrélations avec txabs
+cor_txabs <- correlations[, "txabs"]
+cor_txabs
+# Trier les corrélations par ordre décroissant de valeur absolue
+cor_txabs_sorted <- sort(cor_txabs, decreasing = TRUE)
+
+# Afficher les résultats
+print(cor_txabs_sorted)
+
+
+```
+```{r}
+# Définir le seuil de corrélation
+seuil_corr <- 0.6
+
+# Calculer la matrice de corrélation pour toutes les variables numériques
+correlations <- cor(data_abs_numeric, use = "complete.obs")
+
+# Liste des variables à garder
+variables_to_keep <- colnames(correlations)
+
+# Boucle pour vérifier chaque paire de variables et exclure celles corrélées au-delà du seuil
+for (var in colnames(correlations)) {
+  # Vérifier si cette variable est toujours dans la liste (elle n'a pas été supprimée)
+  if (var %in% variables_to_keep) {
+    # Obtenir les corrélations absolues de cette variable avec les autres
+    corr_with_var <- abs(correlations[var, ])
+    
+    # Trouver les variables avec une corrélation supérieure au seuil (sauf avec elle-même)
+    high_corr_vars <- names(corr_with_var[corr_with_var > seuil_corr & corr_with_var < 1])
+    
+    # Retirer les variables fortement corrélées de la liste, sauf celle actuelle
+    variables_to_keep <- setdiff(variables_to_keep, high_corr_vars)
+  }
+}
+
+# Afficher la liste finale des variables non fortement corrélées
+print(variables_to_keep)
+
+```
+
+
+```{r}
+# Calculer la matrice de corrélation
+correlation_matrix <- cor(data_abs_numeric, use = "complete.obs")
+
+# Filtrer les corrélations en dehors de [-0.5, 0.5]
+high_corr_pairs <- correlation_matrix > 0.95 | correlation_matrix < -0.95
+
+# Identifier les variables qui ont des corrélations élevées avec d'autres variables
+high_corr_vars <- colnames(correlation_matrix)[apply(high_corr_pairs, 2, any)]
+
+# Extraire les variables qui ne sont PAS fortement corrélées
+low_corr_vars <- setdiff(colnames(correlation_matrix), high_corr_vars)
+
+# Afficher les variables faiblement corrélées
+print(low_corr_vars)
+
+```
+
+
+## Données Compositionelles
+
+# Analyse de données
+```{r}
+# Sélectionner les variables compositionnelles du jeu de données
+compositional_vars <- data_abs[, c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")]
+
+# Appliquer la transformation CLR
+clr_data <- clr(compositional_vars)
+
+# Convertir le résultat en data frame
+clr_data_abs <- as.data.frame(clr_data)
+
+# Afficher les premières lignes des données CLR
+head(clr_data_abs)
+```
+```{r}
+# Sélectionner les autres variables quantitatives
+other_vars <- data_abs[, c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho", "txabs")]
+
+# Combiner les données CLR transformées avec ces autres variables quantitatives
+final_data_abs <- cbind(clr_data_abs, other_vars)
+
+# Afficher les premières lignes du data frame combiné
+head(final_data_abs)
+```
+
+```{r}
+PCA <- prcomp(final_data_abs, scale = TRUE)
+biplot(PCA, scale = 0)
+```
+```{r}
+plot(PCA, type = 'l')
+```
+### EXTRAIRE LES SCORES DES PC
+```{r}
+str(PCA)
+# Pour prendre les coordonnées dans la composante principale = PCA$x
+
+final_data_abs2 <- cbind(final_data_abs, PCA$x[, 1:2])
+head(final_data_abs2)
+
+```
+```{r}
+#Ajouter une colonne Niv_abs pour faire un plot après
+final_data_abs2$NivAbs <- ifelse(final_data_abs2$txabs < 20, "abs_bas",
+                    ifelse(final_data_abs2$txabs >= 20 & final_data_abs2$txabs <= 25, "abs_moyen", 
+                           "abs_élévé"))
+final_data_abs2
+```
+```{r}
+summary(final_data_abs2)
+variances <- apply(final_data_abs2, 2, var)
+print(variances)
+
+```
+
+
+```{r}
+ggplot(final_data_abs2, aes(PC1, PC2, col = NivAbs, fill = NivAbs))+
+  stat_ellipse(geom = "polygon", col = "black", alpha = 0.5)+
+  geom_point(shape = 21, col = "black")
+```
+## Clustering
+
+Méthode du K-means
+
+On choisit K
+
+```{r}
+# Créer une matrice ou un data frame avec les colonnes PC1 et PC2
+data_for_clustering <- data.frame(final_data_abs2$PC1, final_data_abs2$PC2)
+
+# Appliquer kmeans dans une boucle
+k <- list()  # Initialiser une liste pour stocker les résultats
+for (i in 1:10) {
+  k[[i]] <- kmeans(data_for_clustering, centers = i)  # `centers = i` signifie i clusters
+}
+```
+
+```{r}
+between_totss <- list()
+for (i in 1:10){
+  between_totss[[i]] <- k[[i]]$betweenss/k[[i]]$totss
+}
+
+plot(1:10, between_totss, type = 'b',
+     ylab = "btw SS/tt SS", xlab = 'Cluster k')
+```
+```{r}
+for (i in 1:4){
+  plot(data_for_clustering, col = k[[i]]$cluster)
+}
+```
+
+## Clustering hiérachique
+```{r}
+d <- dist(data_for_clustering)
+fitH <- hclust(d, "ward.D2")
+plot(fitH)
+```
+
+```{r}
+fitH <- hclust(d, method = "ward.D2")  # Clustering hiérarchique
+
+# Étape 1 : Tracer le dendrogramme
+plot(fitH)
+
+# Étape 2 : Ajouter les rectangles pour k = 3 clusters
+rect.hclust(fitH, k = 3, border = "red")
+```
+
+```{r}
+clusters <- cutree(fitH, 3)
+plot(data_for_clustering, col = clusters)
+```
+
+# Multi linéarité
+
+```{r}
+pairs(data_abs_numeric)
+```
+
+```{r}
+library(corrplot) 
+correlation_matrix <- cor(data_abs_numeric)
+
+corrplot(correlation_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45, addCoef.col = "black", number.cex = 0.7, number.digits = 2)
+```
+
+```{r}
+model <- lm(txabs ~ PI, Cadres, Agri, Employe, Artisant, Salairemoy, data = final_data_abs2)
+model
+```
+
