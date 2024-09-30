@@ -1,0 +1,722 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+## Importation des données
+
+```{r}
+install.packages("ggcorrplot")
+```
+
+
+Importation des librairies
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggcorrplot)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(compositions)
+library(FactoMineR)
+library(factoextra)
+```
+
+
+chargement des fichiers
+```{r}
+df <- read_excel("data_abs.xlsx")
+```
+
+Afficher les premières lignes
+```{r}
+head(df)
+```
+
+
+Données statistiques
+```{r}
+summary(df)
+```
+
+## Analyse univarié
+
+
+```{r}
+# Distribution du taux d'abstention (TxAbs)
+ggplot(df, aes(x = txabs)) + 
+  geom_histogram(binwidth = 1, fill = "red", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux d'abstention", x = "Taux d'abstention", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+Le graphique montre la répartition du taux d'abstention dans les différents départements.
+On peut observer que la plupart des départements ont un taux d'abstention compris entre 15% et 25%.
+
+
+```{r}
+# Distribution du taux de pauvreté (TxPauv)
+ggplot(df, aes(x = TxPauv)) + 
+  geom_histogram(binwidth = 1, fill = "gray", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de pauvreté", x = "Taux de pauvreté", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+La plupart des départements ont un taux de pauvreté entre 10% et 20%. 
+
+
+
+```{r}
+# Distribution du taux de chômage (txcho)
+ggplot(df, aes(x = txcho)) + 
+  geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de chômage", x = "Taux de chômage", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+Le taux de chômage varie significativement entre les départements, avec des valeurs principalement comprises entre 6% et 15%.
+
+
+## Analyse bivariée
+
+
+```{r}
+# Relation entre le taux d'abstention et le taux de pauvreté
+ggplot(df, aes(x = TxPauv, y = txabs)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de pauvreté en fonction du Taux d'abstention", x = "Taux de pauvreté", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+
+Il y a une corrélation positive entre le taux de pauvreté et le taux d'abstention.
+
+
+```{r}
+# Relation entre le taux d'abstention et le taux de chômage
+ggplot(df, aes(x = txcho, y = txabs)) +
+  geom_point(color = "green") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de chômage vs Taux d'abstention", x = "Taux de chômage", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+Il y a aussi une corrélation positive entre le taux de chômage et le taux d'abstention. 
+
+
+
+
+
+```{r}
+# Relation entre le taux d'abstention et le salaire moyen
+ggplot(df, aes(x = Salairemoy, y = txabs)) +
+  geom_point(color = "purple") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Salaire moyen vs Taux d'abstention", x = "Salaire moyen", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+
+Il semble que les départements avec un salaire moyen plus bas aient tendance à avoir un taux d'abstention plus fort.
+
+
+```{r}
+# Sélectionner uniquement les colonnes numériques
+df_numeric <- df[, sapply(df, is.numeric)]
+
+# Créer la matrice de corrélation uniquement avec les variables numériques
+corr_matrix <- cor(df_numeric, use = "complete.obs")
+
+# Transformer la matrice de corrélation en format long (nécessaire pour ggplot2)
+melted_corr_matrix <- melt(corr_matrix)
+
+# Créer la heatmap avec ggplot2
+ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Corrélation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10)) +
+  coord_fixed() +
+  labs(title = "Matrice de corrélation")
+```
+## données compositionnelles
+
+
+```{r}
+# Sélectionner les variables compositionnelles du jeu de données
+compositional_vars <- df[, c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")]
+
+# Appliquer la transformation CLR
+clr_data <- clr(compositional_vars)
+
+# Convertir le résultat en data frame
+clr_df <- as.data.frame(clr_data)
+
+# Afficher les premières lignes des données CLR
+head(clr_df)
+```
+
+```{r}
+# Sélectionner les autres variables quantitatives
+other_vars <- df[, c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho", "txabs")]
+
+# Combiner les données CLR transformées avec ces autres variables quantitatives
+final_df <- cbind(clr_df, other_vars)
+
+# Afficher les premières lignes du data frame combiné
+head(final_df)
+```
+
+```{r}
+final_df <- scale(final_df,center = TRUE,scale=TRUE)
+
+```
+
+
+
+```{r}
+# Réaliser une ACP sur toutes les variables (CLR + autres quantitatives)
+res.pca <- PCA(final_df, graph = FALSE)
+
+# Résumé des résultats de l'ACP
+summary(res.pca)
+```
+
+
+```{r}
+# Visualiser la variance expliquée par chaque composante (scree plot)
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 50))
+```
+
+Le scree plot montre que les deux premières composantes principales (Dim 1 et Dim 2) expliquent ensemble 59.8 % de la variance totale (33.8 % pour Dim 1 et 26 % pour Dim 2). Cela signifie que ces deux dimensions capturent l'essentiel de l'information dans les données, ce qui justifie leur utilisation pour une analyse simplifiée.
+
+
+```{r}
+# Extraire les variances expliquées par chaque composante
+eig.val <- res.pca$eig
+
+# Calculer la variance cumulée
+variance_expliquee <- eig.val[, 2]  # Prendre la deuxième colonne qui est la variance expliquée en pourcentage
+variance_cumulee <- cumsum(variance_expliquee)  # Calculer la somme cumulée
+
+# Créer un DataFrame pour visualiser
+df_variance <- data.frame(
+  Dim = 1:length(variance_expliquee),
+  Variance = variance_expliquee,
+  CumulativeVariance = variance_cumulee
+)
+
+# Visualiser la variance cumulée avec étiquettes sur les points
+ggplot(df_variance, aes(x = Dim)) +
+  geom_bar(aes(y = Variance), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeVariance, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeVariance), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeVariance, label = round(CumulativeVariance, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Variance expliquée et cumulée par chaque composante",
+    x = "Composantes principales",
+    y = "Pourcentage de variance expliquée (%)"
+  ) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Variance cumulée (%)")) +
+  theme_minimal()
+```
+
+
+
+
+```{r}
+# Visualiser les variables sur le plan factoriel
+fviz_pca_var(res.pca, col.var = "contrib", 
+             gradient.cols = c("blue", "yellow", "red"),
+             repel = TRUE)
+```
+
+Le cercle des corrélations illustre les relations entre les variables et les deux premières composantes principales. Les variables PI, Cadres, et Agri contribuent fortement à Dim 1, tandis que Employe, Artisant, et Salairemoy dominent Dim 2. Les flèches proches représentent des corrélations entre les variables, par exemple, Artisant, Ouvrier, et txcho sont fortement corrélés et liés à des métiers manuels et des difficultés socio-économiques.
+
+
+```{r}
+# Contribution des variables à la première composante (Dim 1)
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 10)
+```
+
+
+Les variables PI, Cadres, et Agri contribuent le plus à la première composante principale (Dim 1), indiquant que cette dimension capture surtout des informations liées aux professions intermédières, aux cadres et à l’agriculture.
+
+
+```{r}
+# Extraire les contributions des variables à Dim 1
+contrib_dim1 <- res.pca$var$contrib[,1]
+
+# Créer un dataframe avec les contributions
+df_contrib <- data.frame(Variable = names(contrib_dim1), Contribution = contrib_dim1)
+
+# Trier par ordre décroissant et garder les 10 premières contributions
+df_contrib <- df_contrib[order(df_contrib$Contribution, decreasing = TRUE),]
+df_contrib_top10 <- df_contrib[1:10,]
+
+# Visualisation avec ggplot2
+library(ggplot2)
+ggplot(df_contrib_top10, aes(x = reorder(Variable, Contribution), y = Contribution)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = paste0(round(Contribution, 1), "%")), 
+            vjust = -0.5, size = 3.5) +  # Ajouter les pourcentages sur les barres
+  labs(title = "Contribution des variables à la première composante (Dim 1)",
+       x = "Variable", 
+       y = "Contribution (%)") +
+  theme_minimal() +
+  coord_flip()  # Inverser les axes pour une meilleure lisibilité
+```
+
+
+
+```{r}
+# Extraire les contributions des variables à la première composante (Dim 1)
+contrib_dim1 <- res.pca$var$contrib[, 1]  # Contributions à Dim 1
+
+# Créer un DataFrame pour les contributions
+df_contrib <- data.frame(
+  Variable = names(contrib_dim1),
+  Contribution = contrib_dim1
+)
+
+# Trier par ordre décroissant de contribution
+df_contrib <- df_contrib %>%
+  arrange(desc(Contribution))
+
+# Calculer la contribution cumulée
+df_contrib <- df_contrib %>%
+  mutate(CumulativeContribution = cumsum(Contribution))
+
+# Visualiser les contributions avec la ligne cumulée
+ggplot(df_contrib, aes(x = reorder(Variable, -Contribution))) +
+  geom_bar(aes(y = Contribution), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeContribution, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeContribution), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeContribution, label = round(CumulativeContribution, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Contribution cumulée des variables à la première composante (Dim 1)",
+    x = "Variables",
+    y = "Contribution (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X pour une meilleure lisibilité
+```
+
+
+```{r}
+# Contribution des variables à la deuxième composante (Dim 2)
+fviz_contrib(res.pca, choice = "var", axes = 2, top = 10)
+```
+
+
+Les variables Employe, Artisant, Salairemoy, et Ouvrier dominent la contribution à la deuxième composante principale (Dim 2), indiquant que cette dimension est principalement axée sur des profession subordonnée et des métiers manuels, avec une influence notable du chômage (txcho).
+
+
+```{r}
+# Extraire les contributions des variables à Dim 2
+contrib_dim2 <- res.pca$var$contrib[,2]
+
+# Créer un dataframe avec les contributions
+df_contrib_dim2 <- data.frame(Variable = names(contrib_dim2), Contribution = contrib_dim2)
+
+# Trier par ordre décroissant et garder les 10 premières contributions
+df_contrib_dim2 <- df_contrib_dim2[order(df_contrib_dim2$Contribution, decreasing = TRUE),]
+df_contrib_dim2_top10 <- df_contrib_dim2[1:10,]
+
+# Visualisation avec ggplot2
+library(ggplot2)
+ggplot(df_contrib_dim2_top10, aes(x = reorder(Variable, Contribution), y = Contribution)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = paste0(round(Contribution, 1), "%")), 
+            vjust = -0.5, size = 3.5) +  # Ajouter les pourcentages sur les barres
+  labs(title = "Contribution des variables à la deuxième composante (Dim 2)",
+       x = "Variable", 
+       y = "Contribution (%)") +
+  theme_minimal() +
+  coord_flip()  # Inverser les axes pour une meilleure lisibilité
+```
+
+```{r}
+# Extraire les contributions des variables à la deuxième composante (Dim 2)
+contrib_dim2 <- res.pca$var$contrib[, 2]  # Contributions à Dim 2
+
+# Créer un DataFrame pour les contributions
+df_contrib_dim2 <- data.frame(
+  Variable = names(contrib_dim2),
+  Contribution = contrib_dim2
+)
+
+# Trier par ordre décroissant de contribution
+df_contrib_dim2 <- df_contrib_dim2 %>%
+  arrange(desc(Contribution))
+
+# Calculer la contribution cumulée
+df_contrib_dim2 <- df_contrib_dim2 %>%
+  mutate(CumulativeContribution = cumsum(Contribution))
+
+# Visualiser les contributions avec la ligne cumulée
+ggplot(df_contrib_dim2, aes(x = reorder(Variable, -Contribution))) +
+  geom_bar(aes(y = Contribution), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeContribution, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeContribution), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeContribution, label = round(CumulativeContribution, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Contribution cumulée des variables à la deuxième composante (Dim 2)",
+    x = "Variables",
+    y = "Contribution (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X pour une meilleure lisibilité
+
+```
+
+
+
+
+
+
+```{r}
+# Contribution des variables à la troisième composante (Dim 2)
+fviz_contrib(res.pca, choice = "var", axes = 3, top = 10)
+```
+
+```{r}
+# Extraire les contributions des variables à Dim 3
+contrib_dim3 <- res.pca$var$contrib[,3]
+
+# Créer un dataframe avec les contributions
+df_contrib_dim3 <- data.frame(Variable = names(contrib_dim3), Contribution = contrib_dim3)
+
+# Trier par ordre décroissant et garder les 10 premières contributions
+df_contrib_dim3 <- df_contrib_dim3[order(df_contrib_dim3$Contribution, decreasing = TRUE),]
+df_contrib_dim3_top10 <- df_contrib_dim3[1:10,]
+
+# Visualisation avec ggplot2
+ggplot(df_contrib_dim3_top10, aes(x = reorder(Variable, Contribution), y = Contribution)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = paste0(round(Contribution, 1), "%")), 
+            vjust = -0.5, size = 3.5) +  # Ajouter les pourcentages sur les barres
+  labs(title = "Contribution des variables à la troisième composante (Dim 3)",
+       x = "Variable", 
+       y = "Contribution (%)") +
+  theme_minimal() +
+  coord_flip()  # Inverser les axes pour une meilleure lisibilité
+
+```
+
+```{r}
+# Extraire les contributions des variables à la troisième composante (Dim 3)
+contrib_dim3 <- res.pca$var$contrib[, 3]  # Contributions à Dim 3
+
+# Créer un DataFrame pour les contributions
+df_contrib_dim3 <- data.frame(
+  Variable = names(contrib_dim3),
+  Contribution = contrib_dim3
+)
+
+# Trier par ordre décroissant de contribution
+df_contrib_dim3 <- df_contrib_dim3 %>%
+  arrange(desc(Contribution))
+
+# Calculer la contribution cumulée
+df_contrib_dim3 <- df_contrib_dim3 %>%
+  mutate(CumulativeContribution = cumsum(Contribution))
+
+# Visualiser les contributions avec la ligne cumulée
+ggplot(df_contrib_dim3, aes(x = reorder(Variable, -Contribution))) +
+  geom_bar(aes(y = Contribution), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeContribution, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeContribution), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeContribution, label = round(CumulativeContribution, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Contribution cumulée des variables à la troisième composante (Dim 3)",
+    x = "Variables",
+    y = "Contribution (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X pour une meilleure lisibilité
+```
+
+
+
+
+
+```{r}
+# Filtrer les individus avec cos² > 50%
+ind_cos2 <- apply(res.pca$ind$cos2, 1, max) > 0.5
+
+# Filtrer les variables avec cos² > 50%
+var_cos2 <- apply(res.pca$var$cos2, 1, max) > 0.5
+
+# Créer un graphique combiné des individus et des variables
+fviz_pca_biplot(res.pca,
+                select.ind = list(cos2 = 0.5), # Sélectionner les individus avec cos² > 50%
+                select.var = list(cos2 = 0.5), # Sélectionner les variables avec cos² > 50%
+                repel = TRUE, # Éviter le chevauchement des étiquettes
+                title = "Biplot des Individus et des Variables (cos² > 50%)",
+                col.ind = "blue", # Couleur des individus
+                col.var = "red" # Couleur des variables
+                )
+```
+
+###
+
+```{r}
+# Créer des catégories basées sur des bornes ajustées pour équilibrer les groupes
+final_df$groupe_abstention <- cut(final_df$txabs,
+                                  breaks = quantile(final_df$txabs, probs = seq(0, 1, by = 1/3)),  # Tertiles
+                                  labels = c("Faible", "Moyen", "Fort"))
+
+# Vérifier la répartition des groupes
+table(final_df$groupe_abstention)
+
+# Afficher les premières lignes pour vérifier les résultats
+head(final_df)
+
+```
+
+
+```{r}
+# Visualiser avec l'habillage basé sur le taux d'abstention
+fviz_pca_ind(res.pca, 
+             habillage = final_df$groupe_abstention,  # Colorer par le taux d'abstention
+             addEllipses = TRUE,                 # Ajouter des ellipses autour des groupes
+             ellipse.level = 0.68,               # Niveau de confiance pour les ellipses
+             palette = "Dark2") +                # Palette de couleurs
+  theme_minimal()
+```
+
+
+
+
+## Cluster
+
+
+
+```{r}
+if (!require(factoextra)) install.packages("factoextra")
+if (!require(cluster)) install.packages("cluster")
+
+library(factoextra)
+library(cluster)
+```
+
+
+
+```{r}
+# Détermination du nombre optimal de clusters avec la méthode du coude
+fviz_nbclust(final_df, kmeans, method = "wss") + 
+    geom_vline(xintercept = 4, linetype = 2) +  # Ajuster le xintercept selon le résultat
+    labs(title = "Détermination du Nombre Optimal de Clusters",
+         x = "Nombre de Clusters",
+         y = "Somme des Carrés Intra-Cluster (WSS)") +
+    theme_minimal()
+```
+
+
+```{r}
+# Calcul de l'indice de silhouette pour différents nombres de clusters
+fviz_nbclust(final_df, kmeans, method = "silhouette") +
+    labs(title = "Détermination du Nombre Optimal de Clusters avec la Méthode de la Silhouette",
+         x = "Nombre de Clusters",
+         y = "Largeur Moyenne de la Silhouette") +
+    theme_minimal()
+
+```
+
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+kmeans_result <- kmeans(final_df, centers = 2, nstart = 25)
+
+fviz_cluster(kmeans_result, data = final_df)
+```
+
+
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+k2 <- kmeans(final_df, centers = 2, nstart = 25)
+k3 <- kmeans(final_df, centers = 3, nstart = 25)
+k5 <- kmeans(final_df, centers = 5, nstart = 25)
+
+# plots to compare
+p1 <- fviz_cluster(k2, geom = "point", data = final_df) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = final_df) + ggtitle("k = 3")
+p3 <- fviz_cluster(k5, geom = "point",  data = final_df) + ggtitle("k = 5")
+p4 <- fviz_cluster(kmeans_result, geom = "point",  data = final_df) + ggtitle("k = 4")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3,p4, nrow = 2)
+
+```
+
+
+
+```{r}
+# Ajouter la colonne de cluster à df
+final_df$cluster <- factor(kmeans_result$cluster)
+```
+
+
+
+```{r}
+
+# Liste des variables quantitatives à visualiser (en excluant la colonne 'cluster')
+liste_variable_quanti <- c("PI", "Cadres", "Agri", "Employe", "Artisant", "Ouvrier", "TxPauv", "txcho", "txabs")
+
+# Pour chaque variable quantitative, créer un boxplot par rapport à cluster
+for (col in liste_variable_quanti) {
+  p <- ggplot(final_df, aes(x = cluster, y = .data[[col]], fill = cluster)) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = paste("Boxplot de", col, "par cluster"), x = "Cluster", y = col) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Incliner le texte de l'axe X
+          plot.title = element_text(hjust = 0.5))  # Centrer le titre
+
+  # Afficher le boxplot
+  print(p)
+}
+```
+
+
+
+
+
+```{r}
+# Pour chaque variable quantitative, créer un boxplot par rapport à cluster
+for (col in liste_variable_quanti) {
+  p <- ggplot(final_df, aes(x = .data[[col]], y = txabs, col =cluster, fill = cluster)) +
+    geom_point() +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = paste("Boxplot de", col, "par cluster"), x = col, y = "txabs") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Incliner le texte de l'axe X
+          plot.title = element_text(hjust = 0.5))  # Centrer le titre
+
+  # Afficher le boxplot
+  print(p)
+}
+```
+
+
+
+```{r}
+ggplot(final_df, aes(x = factor(cluster), fill = groupe_abstention)) +
+    geom_bar(position = "dodge") +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = "Répartition des taux d'abstention par cluster",
+         x = "Cluster",
+         y = "Absention") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X
+```
+
+
+## regression logistique multi
+
+
+
+```{r}
+# Installer le package nnet si nécessaire
+if (!require(nnet)) install.packages("nnet")
+library(nnet)
+```
+
+
+```{r}
+# Vérifier la répartition des groupes
+table(final_df$groupe_abstention)
+
+```
+
+
+```{r}
+# Appliquer la régression logistique multinomiale
+multinom_model <- multinom(groupe_abstention ~ PI + Cadres + Agri + Employe + Artisant + Salairemoy + Ouvrier + txcho, 
+                           data = final_df)
+
+# Résumé des résultats du modèle
+summary(multinom_model)
+
+```
+
+
+
+```{r}
+# Calculer les z-scores et les p-values
+z_scores <- summary(multinom_model)$coefficients / summary(multinom_model)$standard.errors
+p_values <- 2 * (1 - pnorm(abs(z_scores)))
+
+# Afficher les p-values pour chaque coefficient
+p_values
+
+```
+
+
+```{r}
+# Faire des prédictions
+predictions <- predict(multinom_model, newdata = final_df)
+
+# Créer une matrice de confusion pour voir les prédictions correctes
+confusion_matrix <- table(Predicted = predictions, Actual = final_df$groupe_abstention)
+print(confusion_matrix)
+
+# Calculer l'accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", round(accuracy, 4)))
+```
+
+```{r}
+# Charger les bibliothèques nécessaires
+library(ggplot2)
+library(reshape2)
+
+# Créer une matrice de confusion sous forme de tableau
+conf_mat <- table(Predicted = predictions, Actual = final_df$groupe_abstention)
+
+# Transformer la matrice en format "long" pour ggplot2
+conf_mat_melt <- melt(conf_mat)
+
+# Visualiser la matrice de confusion sous forme de heatmap
+ggplot(conf_mat_melt, aes(x = Actual, y = Predicted)) +
+  geom_tile(aes(fill = value), color = "white") +
+  scale_fill_gradient(low = "white", high = "lightblue") +
+  geom_text(aes(label = value), vjust = 1) +
+  labs(title = "Matrice de confusion", x = "Classe réelle", y = "Classe prédite") +
+  theme_minimal()
+
+```
+
+```{r}
+# Charger les bibliothèques nécessaires
+library(pROC)
+
+# Multinomial model output
+probs <- predict(multinom_model, newdata = final_df, type = "prob")
+
+# Créer des courbes ROC pour chaque classe
+roc_faible <- roc(final_df$groupe_abstention == "Faible", probs[, "Faible"])
+roc_moyen <- roc(final_df$groupe_abstention == "Moyen", probs[, "Moyen"])
+roc_fort <- roc(final_df$groupe_abstention == "Fort", probs[, "Fort"])
+
+# Tracer les courbes ROC
+plot(roc_faible, col = "blue", main = "Courbes ROC par classe")
+plot(roc_moyen, col = "red", add = TRUE)
+plot(roc_fort, col = "green", add = TRUE)
+
+legend("bottomright", legend = c("Faible", "Moyen", "Fort"),
+       col = c("blue", "red", "green"), lwd = 2)
+
+```
+
+
+
+
