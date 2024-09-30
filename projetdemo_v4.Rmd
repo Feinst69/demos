@@ -6,10 +6,6 @@ output: html_notebook
 
 ## Importation des données
 
-```{r}
-install.packages("ggcorrplot")
-```
-
 
 Importation des librairies
 ```{r}
@@ -145,6 +141,7 @@ ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
   coord_fixed() +
   labs(title = "Matrice de corrélation")
 ```
+
 ## données compositionnelles
 
 
@@ -237,7 +234,33 @@ fviz_pca_var(res.pca, col.var = "contrib",
              repel = TRUE)
 ```
 
+
 Le cercle des corrélations illustre les relations entre les variables et les deux premières composantes principales. Les variables PI, Cadres, et Agri contribuent fortement à Dim 1, tandis que Employe, Artisant, et Salairemoy dominent Dim 2. Les flèches proches représentent des corrélations entre les variables, par exemple, Artisant, Ouvrier, et txcho sont fortement corrélés et liés à des métiers manuels et des difficultés socio-économiques.
+
+
+### Analyse des variables :
+
+#### Variables fortement corrélées à Dim 1 :
+Les variables **PI**, **Cadres** contribuent fortement à Dim 1. Cela suggère que cette dimension est associée à des professions plus qualifiées ou bien rémunérées.
+
+#### Variables fortement corrélées à Dim 2 :
+Les variables **TxPauv**, **Artisant**, **txcho** et **Ouvrier** sont plus corrélées à Dim 2. Ces variables représentent davantage des difficultés socio-économiques.
+
+#### Corrélation entre variables :
+- **Txcho** et **txabs** (taux de chômage et taux d’abstention) sont proches et dans la même direction, ce qui indique une corrélation positive entre ces variables. Plus le taux de chômage est élevé, plus le taux d'abstention pourrait l'être.
+- **Salairemoy** et **Cadres** sont également proches, montrant une forte association entre ces deux variables, ce qui est logique car les cadres sont généralement mieux rémunérés.
+- **Nondiplome** est dans une direction opposée à **Salairemoy** ce qui suggère que dans les zones à faible revenu, les non diplomé sont plus courant.
+
+#### Contribution des variables :
+- Le code de couleur montre la contribution des variables à la variance expliquée par les deux dimensions.
+- Les variables comme **PI**, **Cadres**, **Employe**, et **Agri** ont une forte contribution (orange/rouge).
+- Les variables comme **TxPauv** et **HLM** contribuent moins à la variance (bleu/violet).
+
+### Résumé :
+- **Dim 1** semble capturer des informations relatives à la position socio-économique favorable (professions qualifiées, revenus élevés).
+- **Dim 2** est plus lié à des variables socio-économiques représentant des difficultés (chômage, pauvreté, métiers manuels).
+
+
 
 
 ```{r}
@@ -308,6 +331,22 @@ ggplot(df_contrib, aes(x = reorder(Variable, -Contribution))) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X pour une meilleure lisibilité
 ```
 
+### Analyse de la contribution cumulée des variables à la première composante (Dim 1)
+
+**Variance cumulée des variables les plus importantes :**
+   - **PI**, **Cadres**, **Agri**, **Employe**, et **Salairemoy** totalisent une variance cumulée de **82%** pour la première dimension (Dim 1). 
+   - Ces variables jouent un rôle crucial dans la définition de Dim 1. Elles représentent la majeure partie de l'information capturée par cette composante.
+
+**Interprétation :**
+   - **PI** (Position Internationale) et **Cadres** dominent cette dimension, ce qui suggère que Dim 1 est fortement influencée par des variables liées à des professions qualifiées, à la position socio-économique élevée, et au capital humain. 
+   - **Agri** (Agriculture), **Employe**, et **Salairemoy** (Salaire moyen) viennent compléter cette dimension. Leur contribution importante montre que Dim 1 représente à la fois le secteur agricole, les employés de secteurs plus généraux, et les niveaux de revenus.
+   - Les variables **NonDiplome**, **TxPauv** (Taux de pauvreté), **txcho** (Taux de chômage), **Ouvrier**, et **Artisant** ont une contribution cumulée beaucoup plus faible, n'ajoutant que les **18%** restants à Dim 1. Ces variables jouent donc un rôle moins important dans cette dimension, reflétant peut-être une faible corrélation avec les aspects socio-économiques favorisés représentés par Dim 1.
+
+### Conclusion :
+Dim 1 capture essentiellement des informations socio-économiques liées aux professions qualifiées et aux revenus. Les variables comme **PI**, **Cadres** y jouent un rôle prédominant, indiquant que cette dimension est principalement associée aux facteurs de réussite sociale et économique.
+
+
+
 
 ```{r}
 # Contribution des variables à la deuxième composante (Dim 2)
@@ -376,6 +415,20 @@ ggplot(df_contrib_dim2, aes(x = reorder(Variable, -Contribution))) +
 
 ```
 
+### Analyse de la contribution cumulée des variables à la deuxième composante (Dim 2)
+
+**Variance cumulée des variables les plus importantes :**
+   - **Employe**, **Artisant**, **Salairemoy**, et **Ouvrier** totalisent une variance cumulée de **51.9%** pour la deuxième dimension (Dim 2).
+   - Ces variables représentent la moitié de l'information capturée par Dim 2 et sont associées à des catégories professionnelles variées ainsi qu'au revenu.
+
+**Interprétation :**
+   - **Employe** et **Artisant** contribuent le plus à cette dimension, suggérant que Dim 2 est fortement influencée par des professions intermédiaires et artisanales.
+   - **Salairemoy** et **Ouvrier** renforcent cette influence, montrant que Dim 2 capte à la fois des informations sur les revenus moyens et les professions manuelles (ouvriers).
+   - Les variables comme **txcho** (Taux de chômage), **NonDiplome**, **TxPauv**, et **txabs** (Taux d'abstention) viennent compléter la variance capturée par Dim 2. Cela montre que cette dimension est également liée à des facteurs de vulnérabilité socio-économique.
+ 
+
+### Conclusion :
+Dim 2 capture principalement des informations liées aux professions intermédiaires, manuelles et aux revenus moyens. Les variables **Employe**, **Artisant**, **Salairemoy**, et **Ouvrier** y jouent un rôle prépondérant, reflétant une dimension centrée sur les travailleurs et le revenu moyen. En complément, cette dimension inclut également des informations sur la précarité sociale (chômage, pauvreté, absence de diplôme).
 
 
 
@@ -465,6 +518,16 @@ fviz_pca_biplot(res.pca,
                 )
 ```
 
+### Interprétation des groupes d’individus :
+
+- Les individus proches des variables **Cadres**, **Salairemoy**, et **PI** semblent avoir des niveaux de qualification et de revenu plus élevés.
+
+- Les individus situés à l'extrémité gauche, sont plus associés à **Agri** et **NonDiplome**, ce qui pourrait indiquer qu'ils appartiennent à des secteurs moins qualifiés ou agricoles.
+
+- Ceux au centre sont probablement un mélange de plusieurs caractéristiques, car ils sont moins fortement influencés par les variables extrêmes.
+
+
+
 ###
 
 ```{r}
@@ -492,7 +555,50 @@ fviz_pca_ind(res.pca,
   theme_minimal()
 ```
 
+### Analyse générale des groupes d'abstention (suppositions):
 
+- **Groupe à faible abstention** :
+  - Représente des départements où la participation électorale est forte, souvent caractérisés par une population plus urbaine, diplômée, et socialement favorisée. Ces zones montrent un intérêt marqué pour la politique.
+
+- **Groupe à abstention moyenne** :
+  - Comprend des départements avec une population plus diversifiée socio-économiquement, ni fortement engagée ni totalement désengagée. Ce groupe pourrait inclure des régions urbaines et semi-urbaines avec une participation électorale modérée.
+
+- **Groupe à forte abstention** :
+  - Correspond à des départements avec une faible participation électorale, souvent associés à des populations rurales ou moins favorisées socialement et économiquement. L'abstention pourrait être due à une désillusion politique ou un manque d'intérêt.
+  
+
+### Conclusions générales :
+- Les groupes à **faible abstention** sont plus urbains, favorisés et engagés électoralement.
+- Les groupes à **forte abstention** sont plus ruraux ou en difficulté socio-économique, avec un désintérêt pour les élections.
+- Le groupe à **abstention moyenne** présente un profil diversifié, sans caractéristiques socio-économiques extrêmes.
+
+Ces observations suggèrent que la participation électorale varie selon les contextes socio-économiques des départements.
+
+
+Les clusters ne sont pas clairement distincts, ce qui montre que les groupes d'abstention des départements ne sont pas complètement séparés par des caractéristiques socio-économiques bien définies. Il existe un certain chevauchement entre les groupes, en particulier entre les groupes "Moyen" et "Fort", ce qui suggère que les comportements d'abstention des départements peuvent être influencés par plusieurs facteurs complexes.
+
+Ce manque de distinction nette entre les clusters pourrait indiquer que d'autres facteurs non considérés dans cette analyse jouent un rôle important dans la variation des taux d'abstention des départements.
+
+
+
+####
+
+
+```{r}
+# Visualiser avec l'habillage basé sur le taux d'abstention sur les dimensions 3 et 4
+fviz_pca_ind(res.pca, 
+             habillage = final_df$groupe_abstention,  # Colorer par le taux d'abstention
+             addEllipses = TRUE,                 # Ajouter des ellipses autour des groupes
+             ellipse.level = 0.68,               # Niveau de confiance pour les ellipses
+             axes = c(2, 3),                     # Choisir les dimensions 3 et 4
+             palette = "Dark2") +                # Palette de couleurs
+  theme_minimal()
+
+```
+
+
+
+###
 
 
 ## Cluster
@@ -544,13 +650,14 @@ fviz_cluster(kmeans_result, data = final_df)
 set.seed(123)  # Pour la reproductibilité
 k2 <- kmeans(final_df, centers = 2, nstart = 25)
 k3 <- kmeans(final_df, centers = 3, nstart = 25)
+k4 <- kmeans(final_df, centers = 4, nstart = 25)
 k5 <- kmeans(final_df, centers = 5, nstart = 25)
 
 # plots to compare
 p1 <- fviz_cluster(k2, geom = "point", data = final_df) + ggtitle("k = 2")
 p2 <- fviz_cluster(k3, geom = "point",  data = final_df) + ggtitle("k = 3")
-p3 <- fviz_cluster(k5, geom = "point",  data = final_df) + ggtitle("k = 5")
-p4 <- fviz_cluster(kmeans_result, geom = "point",  data = final_df) + ggtitle("k = 4")
+p3 <- fviz_cluster(k4, geom = "point",  data = final_df) + ggtitle("k = 4")
+p4 <- fviz_cluster(k5, geom = "point",  data = final_df) + ggtitle("k = 5")
 
 library(gridExtra)
 grid.arrange(p1, p2, p3,p4, nrow = 2)
@@ -647,6 +754,17 @@ multinom_model <- multinom(groupe_abstention ~ PI + Cadres + Agri + Employe + Ar
 summary(multinom_model)
 
 ```
+### Analyse du Modèle de Régression Multinomiale
+
+Une régression multinomiale a été réalisée pour prédire l'appartenance aux groupes d'abstention (Faible, Moyen, Fort) en fonction de variables socio-économiques (**PI**, **Cadres**, **Agri**, **Employe**, **Artisant**, **Salairemoy**, **Ouvrier**, **txcho**).
+
+#### Coefficients du Modèle
+- **PI** : Effet positif pour le groupe "Moyen" (+1.29) et négatif pour "Fort" (-9.94), indiquant une relation inverse avec l'abstention élevée.
+- **Cadres** : Négatif pour "Moyen" (-0.73) et positif pour "Fort" (+2.21), favorisant l'appartenance au groupe "Fort".
+- **Employe** : Positif pour les groupes "Moyen" (+1.90) et "Fort" (+16.31), montrant une forte association avec l'emploi salarié.
+
+#### Conclusion
+**Employe** et **Cadres** sont des contributeurs clés pour les groupes "Moyen" et "Fort". À l'inverse, **Artisant** et **Ouvrier** ont un effet négatif sur l'appartenance au groupe "Fort", indiquant une moindre présence dans ce groupe.
 
 
 
@@ -659,6 +777,26 @@ p_values <- 2 * (1 - pnorm(abs(z_scores)))
 p_values
 
 ```
+### Analyse des P-valeurs du Modèle Multinomiale
+
+Les P-valeurs associées aux coefficients de la régression multinomiale montrent la significativité des variables pour prédire l'appartenance aux groupes **Moyen** et **Fort** d'abstention, par rapport au groupe de référence (Faible).
+
+#### Interprétation des P-valeurs :
+
+- **Groupe "Moyen"** :
+  - **PI** (0.84), **Cadres** (0.80), et **Employe** (0.67) ne sont pas statistiquement significatifs pour prédire l'appartenance au groupe "Moyen".
+  - **Ouvrier** (0.79) et **Salairemoy** (0.68) sont également non significatifs.
+  - **txcho** (0.03) est significatif, ce qui indique que le taux de chômage est un facteur influençant l'appartenance à ce groupe.
+
+- **Groupe "Fort"** :
+  - **Employe** (0.001) et **Artisant** (0.009) sont très significatifs pour le groupe "Fort", montrant une forte relation entre ces variables et une forte abstention.
+  - **Agri** (0.01) est également significatif, tandis que **Ouvrier** (0.49) et **Salairemoy** (0.45) ne sont pas significatifs.
+  - **txcho** (0.04) est significatif, soulignant le rôle du taux de chômage dans ce groupe.
+
+#### Conclusion :
+- Pour le groupe "Fort", **Employe**, **Artisant**, et **Agri** sont les facteurs les plus significatifs.
+- Pour le groupe "Moyen", seul **txcho** apparaît comme un facteur statistiquement significatif. Les autres variables sont peu pertinentes pour ce groupe.
+
 
 
 ```{r}
@@ -673,6 +811,17 @@ print(confusion_matrix)
 accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
 print(paste("Accuracy:", round(accuracy, 4)))
 ```
+
+
+### Interprétation de l'Accuracy
+
+L'accuracy du modèle est de **0.6**, ce qui signifie que **60 %** des prédictions faites par le modèle sont correctes, c'est-à-dire que le modèle prédit correctement l'appartenance à l'un des trois groupes d'abstention (Faible, Moyen, Fort) dans 60 % des cas.
+
+#### Interprétation :
+- Un taux d'accuracy de 0.6 est relativement moyen. Cela suggère que le modèle capture certaines des relations entre les variables socio-économiques et l'abstention, mais qu'il reste des incertitudes et des erreurs de classification.
+
+
+
 
 ```{r}
 # Charger les bibliothèques nécessaires
