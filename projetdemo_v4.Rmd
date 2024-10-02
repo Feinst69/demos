@@ -75,6 +75,7 @@ ggplot(df, aes(x = txcho)) +
 Le taux de chômage varie significativement entre les départements, avec des valeurs principalement comprises entre 6% et 15%.
 
 
+
 ## Analyse bivariée
 
 
@@ -141,6 +142,167 @@ ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
   coord_fixed() +
   labs(title = "Matrice de corrélation")
 ```
+
+
+
+###
+
+```{r}
+library(ggplot2)
+
+# Assurez-vous que `final_df` contient les données de vos départements et du taux d'abstention
+# Trier par taux d'abstention (du plus petit au plus grand)
+sorted_df <- df[order(df$txabs), ]
+
+# Sélectionner les 10 départements avec le plus faible taux d'abstention
+top_10_lowest <- head(sorted_df, 10)
+
+# Sélectionner les 10 départements avec le plus grand taux d'abstention
+top_10_highest <- tail(sorted_df, 10)
+
+# Combiner les deux groupes
+combined_df <- rbind(top_10_lowest, top_10_highest)
+
+# Créer un graphique en barres
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = txabs, fill = txabs)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 10 départements avec le plus grand / plus faible taux d'abstention",
+       x = "Départements",
+       y = "Taux d'abstention (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_gradient(low = "blue", high = "red")  # Palette de couleur pour illustrer les taux
+```
+
+
+```{r}
+# Ajouter une colonne pour identifier chaque groupe
+top_10_lowest$group <- "Faible taux"
+top_10_highest$group <- "Fort taux"
+
+# Combiner les deux groupes
+combined_df <- rbind(top_10_lowest, top_10_highest)
+
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = TxPauv, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Taux de pauvreté dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Taux de pauvreté (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = HLM, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Nombre de HLM dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "HLM") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+```{r}
+# Ajouter une colonne pour identifier chaque groupe
+top_10_lowest$group <- "Faible taux"
+top_10_highest$group <- "Fort taux"
+
+# Combiner les deux groupes
+combined_df <- rbind(top_10_lowest, top_10_highest)
+
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = txcho, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Taux de chomage dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Taux de chomage (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = Cadres, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Pourcentage de cadres dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Cadres (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = NonDiplome, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Poucentage de non diplomés dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Non dipomé (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = Agri, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Pourcentage d'agriculteurs dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Agriculteurs (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = Ouvrier, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Pourcentage d'ouvriers dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Ouvriers (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = Artisant, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Pourcentage d'artisants dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Artisant (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = Salairemoy, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Salaire moyen dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Salaire moyen") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+### Analyse et recommandations
+
+L'analyse révèle que les départements présentant des taux élevés d'abstention sont souvent marqués par des niveaux de pauvreté et de chômage élevés et, une forte présence de logements sociaux. À l'inverse, les départements avec un taux d'abstention faible se caractérisent par une meilleure situation socio-économique. Ce constat suggère que des inégalités socio-économiques exacerbées pourraient être à l'origine de la désillusion politique et de la déconnexion vis-à-vis du processus électoral dans ces régions. Pour améliorer la participation électorale, il est recommandé de renforcer l'éducation civique, de simplifier les démarches de vote (ex. vote électronique, vote anticipé), d'améliorer les services publics dans les zones défavorisées, de promouvoir des politiques inclusives et de soutenir une plus grande diversité de candidats. Des campagnes de mobilisation locale, en collaboration avec des leaders communautaires, pourraient également renforcer l'engagement des citoyens dans les zones à forte abstention.
+
+
+
+####
+
+
 
 ## données compositionnelles
 
@@ -866,6 +1028,9 @@ legend("bottomright", legend = c("Faible", "Moyen", "Fort"),
 
 ```
 
+
+
+###
 
 
 
