@@ -1,0 +1,352 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggcorrplot)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(compositions)
+library(FactoMineR)
+library(factoextra)
+library(cluster)
+```
+
+
+```{r}
+df <- read_excel("data_abs.xlsx")
+```
+
+
+```{r}
+head(df)
+```
+
+
+
+```{r}
+# Sélection des colonnes compositionnelles
+compositional_data <- df[, c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")]
+
+# Appliquer la transformation ILR
+ilr_transformed <- ilr(compositional_data)
+
+# Convertir en data frame pour faciliter l'usage
+ilr_data <- as.data.frame(ilr_transformed)
+
+# Afficher les premières lignes du résultat
+head(ilr_data)
+```
+
+
+```{r}
+# Sélectionner les autres variables quantitatives
+other_vars <- df[, c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho", "txabs")]
+
+# Combiner les données CLR transformées avec ces autres variables quantitatives
+final_df <- cbind(ilr_data, other_vars)
+
+# Afficher les premières lignes du data frame combiné
+head(final_df)
+```
+
+
+```{r}
+final_df <- scale(final_df,center = TRUE,scale=TRUE)
+```
+
+
+
+## Mise en place des kmeans
+
+### Etape 4: Détermination du nombre de cluster
+
+### 2 méthodes pour déterminer le nombre de groupe
+
+
+## Méthode du coude
+
+```{r}
+# Détermination du nombre optimal de clusters avec la méthode du coude
+fviz_nbclust(final_df, kmeans, method = "wss") + 
+    geom_vline(xintercept = 4, linetype = 2) +  # Ajuster le xintercept selon le résultat
+    labs(title = "Détermination du Nombre Optimal de Clusters",
+         x = "Nombre de Clusters",
+         y = "Somme des Carrés Intra-Cluster (WSS)") +
+    theme_minimal()
+```
+
+Le nombre optimal de cluster avec la méthode du coude est de 4.
+
+
+## Méthode de silhouette
+
+```{r}
+if (!require(purrr)) install.packages("purrr")
+library(purrr)
+
+# function to compute average silhouette for k clusters
+avg_sil <- function(k) {
+  km.res <- kmeans(final_df, centers = k, nstart = 25)
+  ss <- silhouette(km.res$cluster, dist(df))
+  mean(ss[, 3])
+}
+
+# Compute and plot wss for k = 2 to k = 15
+k.values <- 2:15
+
+# extract avg silhouette for 2-15 clusters
+avg_sil_values <- map_dbl(k.values, avg_sil)
+
+plot(k.values, avg_sil_values,
+     type = "b", pch = 19, frame = FALSE, 
+     xlab = "Nombre de clusters K",
+     ylab = "Silhouettes Moyennes")
+
+
+fviz_nbclust(final_df, kmeans, method = "silhouette") +
+    labs(title = "Détermination du Nombre Optimal de Clusters avec la Méthode de la Silhouette",
+         x = "Nombre de Clusters",
+         y = "Largeur Moyenne de la Silhouette") +
+    theme_minimal()
+```
+
+Le nombre optimal avec la méthode de la silhouette est de 2.
+
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+kmeans_result <- kmeans(final_df, centers = 4, nstart = 25)
+```
+
+
+```{r}
+fviz_cluster(kmeans_result, data = final_df)
+```
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+k2 <- kmeans(final_df, centers = 2, nstart = 25)
+k3 <- kmeans(final_df, centers = 3, nstart = 25)
+k5 <- kmeans(final_df, centers = 5, nstart = 25)
+
+# plots to compare
+p1 <- fviz_cluster(k2, geom = "point", data = final_df) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = final_df) + ggtitle("k = 3")
+p3 <- fviz_cluster(k5, geom = "point",  data = final_df) + ggtitle("k = 5")
+p4 <- fviz_cluster(kmeans_result, geom = "point",  data = final_df) + ggtitle("k = 4")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3,p4, nrow = 2)
+```
+
+Conclusion:
+Avec k = 2, les groupes sont trop larges, ne captant pas toute la diversité des individus.
+k = 3 semble fournir un bon compromis entre complexité et interprétabilité.
+k = 4 offre une segmentation plus détaillée, potentiellement utile pour des analyses plus fines.
+k = 5 commence à fragmenter excessivement les données, ce qui pourrait nuire à la clarté des résultats.
+
+Globalement, k = 3 ou k = 4 semblent être des choix raisonnables pour capturer la structure des données tout en maintenant une bonne interprétabilité
+
+
+## Interprétation des résultats
+
+
+```{r}
+# Ajouter la colonne de cluster 
+df$cluster <- factor(kmeans_result$cluster)
+```
+
+```{r}
+# Liste des variables quantitatives à visualiser (en excluant la colonne 'cluster')
+liste_variable_quanti <- c("PI", "Cadres", "Agri", "Employe", "Artisant", "Ouvrier", "TxPauv", "Salairemoy", "HLM", "NonDiplome", "txcho", "txabs")
+
+# Pour chaque variable quantitative, créer un boxplot par rapport à cluster
+for (col in liste_variable_quanti) {
+  p <- ggplot(df, aes(x = cluster, y = .data[[col]], fill = cluster)) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = paste("Boxplot de", col, "par cluster"), x = "Cluster", y = col) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Incliner le texte de l'axe X
+          plot.title = element_text(hjust = 0.5))  # Centrer le titre
+
+  # Afficher le boxplot
+  print(p)
+}
+```
+
+
+
+```{r}
+# Calculer les moyennes des variables quantitatives par cluster
+moyennes_par_cluster <- df %>%
+  group_by(cluster) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE))
+
+# Afficher les moyennes directement, car les valeurs sont déjà en pourcentage
+for (i in 1:nrow(moyennes_par_cluster)) {
+  cat("Cluster", moyennes_par_cluster$cluster[i], ":\n")
+  cat(paste(names(moyennes_par_cluster)[-1], ":",
+            round(moyennes_par_cluster[i, -1], 2), "%", collapse = ", "), "\n\n")
+}
+```
+
+```{r}
+# Charger le package
+library(kableExtra)
+
+# Calculer les moyennes des variables quantitatives par cluster
+moyennes_par_cluster <- df %>%
+  group_by(cluster) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE))
+
+# Créer un tableau formaté
+kbl(moyennes_par_cluster, caption = "Moyenne des variables quantitatives par cluster (%)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+
+
+Interprétation générale :
+Cluster 2 semble représenter une population plus qualifiée avec des niveaux socio-économiques plus élevés (plus de cadres, salaire moyen plus élevé, faible taux de chômage, moins de non-diplômés), et un taux d'abstention plus faible.
+Clusters 1 et 3 ont une proportion plus élevée d'ouvriers, d'employés, et de non-diplômés, des salaires plus bas et des taux de chômage plus élevés. Cela pourrait expliquer les taux d'abstention plus élevés observés dans ces clusters.
+Cluster 4 présente un profil intermédiaire avec une part relativement élevée de professions intermédiaires (PI), d'employés et de cadres, et des conditions socio-économiques modérées.
+
+Synthèse :
+Le Cluster 2 se démarque par des conditions socio-économiques favorables (faible pauvreté, chômage bas, et salaires élevés), et un faible taux d'abstention, tandis que les Clusters 1 et 3 montrent des populations plus vulnérables avec un taux d'abstention plus élevé. 
+
+
+```{r}
+# Créer des catégories basées sur des bornes ajustées pour équilibrer les groupes
+df$groupe_abstention <- cut(df$txabs,
+                                  breaks = quantile(df$txabs, probs = seq(0, 1, by = 1/3)),  # Tertiles
+                                  labels = c("Faible", "Moyen", "Fort"))
+
+# Vérifier la répartition des groupes
+table(df$groupe_abstention)
+
+# Afficher les premières lignes pour vérifier les résultats
+head(df)
+```
+
+
+
+
+```{r}
+ggplot(df, aes(x = factor(cluster), fill = groupe_abstention)) +
+    geom_bar(position = "dodge") +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = "Répartition du taux d'abstention par cluster",
+         x = "Cluster",
+         y = "Nombre de statuts") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X
+```
+
+```{r}
+df_groupe <- df %>%
+  group_by(cluster, groupe_abstention) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(cluster) %>%
+  mutate(freq = count / sum(count)) %>%
+  ungroup()
+df_groupe
+
+
+
+ggplot(df_groupe, aes(x = factor(cluster), y = freq, fill = groupe_abstention)) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = scales::percent(freq, accuracy = 1)), 
+            position = position_fill(vjust = 0.5), 
+            size = 3, 
+            color = "black") +
+  scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+  labs(title = "Répartition proportionnelle du taux d'abstention par cluster",
+       x = "Cluster",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X
+```
+
+Conclusion :
+Le Cluster 1 est dominé par une forte abstention, suggérant des facteurs socio-économiques défavorables.
+Le Cluster 2 a une forte proportion d'individus avec une faible abstention, ce qui pourrait indiquer une population plus engagée politiquement ou ayant des conditions socio-économiques favorables.
+Les Clusters 3 et 4 montrent une répartition plus équilibrée, mais avec une légère tendance vers des taux d'abstention moyens ou élevés, particulièrement dans le Cluster 4.
+
+Cette analyse suggère que les comportements d'abstention sont étroitement liés à des facteurs socio-économiques, avec des clusters plus défavorisés affichant des taux d'abstention plus élevés.
+
+
+
+
+## Interprétation avec 3 clusters
+
+```{r}
+df$cluster3 <- factor(k3$cluster)
+```
+
+```{r}
+# Pour chaque variable quantitative, créer un boxplot par rapport à cluster
+for (col in liste_variable_quanti) {
+  p <- ggplot(df, aes(x = cluster3, y = .data[[col]], fill = cluster3)) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = paste("Boxplot de", col, "par cluster3"), x = "Cluster", y = col) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Incliner le texte de l'axe X
+          plot.title = element_text(hjust = 0.5))  # Centrer le titre
+
+  # Afficher le boxplot
+  print(p)
+}
+```
+
+```{r}
+# Charger le package
+library(kableExtra)
+
+# Calculer les moyennes des variables quantitatives par cluster
+moyennes_par_cluster <- df %>%
+  group_by(cluster3) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE))
+
+# Créer un tableau formaté
+kbl(moyennes_par_cluster, caption = "Moyenne des variables quantitatives par cluster (%)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+
+
+
+```{r}
+df_groupe <- df %>%
+  group_by(cluster3, groupe_abstention) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(cluster3) %>%
+  mutate(freq = count / sum(count)) %>%
+  ungroup()
+df_groupe
+
+
+
+ggplot(df_groupe, aes(x = factor(cluster3), y = freq, fill = groupe_abstention)) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = scales::percent(freq, accuracy = 1)), 
+            position = position_fill(vjust = 0.5), 
+            size = 3, 
+            color = "black") +
+  scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+  labs(title = "Répartition proportionnelle du taux d'abstention par cluster",
+       x = "Cluster",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X
+```
+
+
