@@ -214,9 +214,35 @@ kbl(moyennes_par_cluster, caption = "Moyenne des variables quantitatives par clu
 
 
 
+```{r}
+# Calculer les moyennes des variables quantitatives par cluster
+moyennes_par_cluster <- df %>%
+  group_by(cluster) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE)) %>%
+  pivot_longer(cols = -cluster, names_to = "variable", values_to = "mean_value")
+```
+
+
+
+```{r}
+library(RColorBrewer)
+
+# Créer un graphique en barres pour visualiser les moyennes par cluster
+ggplot(moyennes_par_cluster, aes(x = reorder(variable, mean_value), y = mean_value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Moyennes des variables quantitatives par cluster", x = "Variable", y = "Moyenne (%)") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set3") +  # Utiliser une palette avec des couleurs adaptées pour plusieurs variables
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # Incliner les noms des variables
+  facet_wrap(~ cluster, scales = "free")  # Utiliser 'scales = "free"' pour permettre une échelle libre par cluster
+
+```
+
+
+
 Interprétation générale :
 Cluster 2 semble représenter une population plus qualifiée avec des niveaux socio-économiques plus élevés (plus de cadres, salaire moyen plus élevé, faible taux de chômage, moins de non-diplômés), et un taux d'abstention plus faible.
-Clusters 1 et 3 ont une proportion plus élevée d'ouvriers, d'employés, et de non-diplômés, des salaires plus bas et des taux de chômage plus élevés. Cela pourrait expliquer les taux d'abstention plus élevés observés dans ces clusters.
+Clusters 1 et 3 ont une proportion plus élevée d'ouvriers, d'employés, et de non-diplômés, des salaires plus bas et des taux de chômage plus élevés. Cela pourrait expliquer les taux d'abstention plus élevés observés dans ces clusters, surtout pour cluster 1.
 Cluster 4 présente un profil intermédiaire avec une part relativement élevée de professions intermédiaires (PI), d'employés et de cadres, et des conditions socio-économiques modérées.
 
 Synthèse :
@@ -242,7 +268,7 @@ head(df)
 ```{r}
 ggplot(df, aes(x = factor(cluster), fill = groupe_abstention)) +
     geom_bar(position = "dodge") +
-    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    scale_fill_brewer(palette = "Set2") +  # Utiliser une palette de couleurs
     labs(title = "Répartition du taux d'abstention par cluster",
          x = "Cluster",
          y = "Nombre de statuts") +
@@ -267,13 +293,15 @@ ggplot(df_groupe, aes(x = factor(cluster), y = freq, fill = groupe_abstention)) 
             position = position_fill(vjust = 0.5), 
             size = 3, 
             color = "black") +
-  scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+  scale_fill_brewer(palette = "Set2") +  # Utiliser une palette de couleurs
   labs(title = "Répartition proportionnelle du taux d'abstention par cluster",
        x = "Cluster",
        y = "Proportion (%)") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X
 ```
+
+
 
 Conclusion :
 Le Cluster 1 est dominé par une forte abstention, suggérant des facteurs socio-économiques défavorables.
@@ -307,6 +335,8 @@ for (col in liste_variable_quanti) {
 }
 ```
 
+
+
 ```{r}
 # Charger le package
 library(kableExtra)
@@ -322,6 +352,35 @@ kbl(moyennes_par_cluster, caption = "Moyenne des variables quantitatives par clu
 ```
 
 
+```{r}
+# Calculer les moyennes des variables quantitatives par cluster pour 3 clusters
+moyennes_par_cluster_3 <- df %>%
+  filter(cluster %in% c(1, 2, 3)) %>%  # S'assurer qu'on ne prend que les clusters 1, 2, 3
+  group_by(cluster) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE)) %>%
+  pivot_longer(cols = -cluster, names_to = "variable", values_to = "mean_value")
+
+library(RColorBrewer)
+
+# Créer un graphique en barres pour visualiser les moyennes par cluster
+ggplot(moyennes_par_cluster_3, aes(x = reorder(variable, mean_value), y = mean_value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Moyennes des variables quantitatives par cluster (3 clusters)", 
+       x = "Variable", y = "Moyenne (%)") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set3") +  # Utiliser une palette avec des couleurs adaptées pour plusieurs variables
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # Incliner les noms des variables pour une meilleure lisibilité
+  facet_wrap(~ cluster, scales = "free")  # Créer un graphique distinct par cluster avec des échelles libres
+
+```
+
+
+Synthèse :
+Cluster 1 représente un profil mixte avec une forte proportion d'employés et de non dipolmé, ainsi qu'un taux d'abstention légèrement élevé.
+Cluster 2 est marqué par une prédominance d'ouvriers, d'agriculteurs et de non diplomés par rappot au autres clusters, un taux de pauvreté et de chômage plus élevé, ainsi qu'un niveau d'abstention modéré.
+Cluster 3 regroupe des départements à forte proportion de cadres, des salaires moyens plus élevés et des taux d'abstention les plus bas, suggérant une population plus urbanisée et économiquement favorisée.
+
+Cette analyse montre des différences significatives entre les clusters, suggérant que les caractéristiques socio-économiques influencent le taux d'abstention, notamment en fonction de la répartition des catégories professionnelles, des niveaux de pauvreté et de diplôme.
 
 
 ```{r}
@@ -341,12 +400,46 @@ ggplot(df_groupe, aes(x = factor(cluster3), y = freq, fill = groupe_abstention))
             position = position_fill(vjust = 0.5), 
             size = 3, 
             color = "black") +
-  scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+  scale_fill_brewer(palette = "Set2") +  # Utiliser une palette de couleurs
   labs(title = "Répartition proportionnelle du taux d'abstention par cluster",
        x = "Cluster",
        y = "Proportion (%)") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X
 ```
+
+Conclusion :
+Cluster 1 présente une répartition assez équilibrée entre les différents niveaux d'abstention, avec une tendance plus marquée vers la forte abstention (42%).
+Cluster 2 montre un profil mixte avec une légère préférence pour les départements à faible abstention (38%), mais une présence notable de départements à forte abstention (29%).
+Cluster 3 est clairement dominé par les départements avec un faible taux d'abstention (75%), suggérant une participation électorale beaucoup plus importante dans ces départements.
+
+Ces différences entre les clusters soulignent l'importance des caractéristiques socio-économiques dans l'engagement électoral des départements.
+
+
+
+### Conclusion générale
+
+La segmentation des départements en fonction de leurs caractéristiques socio-économiques montre clairement que le taux d'abstention est étroitement lié à des facteurs le niveau de diplôme, et la répartition des catégories professionnelles. Plus un département est économiquement favorisé (présence de cadres, salaires moyens plus élevés), plus le taux de participation électorale est élevé.
+
+Recommandations:
+
+Pour améliorer la participation électorale dans les zones à forte abstention :
+
+- Cibler les zones les plus défavorisées : Les clusters avec une faible proportions de cadres affichent des taux d'abstention élevés. Des campagnes spécifiques visant ces populations, avec un message clair sur l'importance de la participation électorale, pourraient être efficaces.
+
+- Renforcer l'éducation civique : Dans les départements où le taux de non-diplômés est élevé, des programmes éducatifs ou des campagnes de sensibilisation pourraient contribuer à une meilleure compréhension des enjeux électoraux.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
