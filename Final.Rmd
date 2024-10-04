@@ -1,0 +1,1117 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Importation des données
+
+Importation des librairies
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggcorrplot)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(compositions)
+library(FactoMineR)
+library(factoextra)
+library(cluster)
+```
+
+chargement des fichiers
+
+```{r}
+df <- read_excel("data_abs.xlsx")
+head(df)
+```
+
+## Analyse univarié
+
+```{r}
+# Distribution du taux d'abstention (TxAbs)
+ggplot(df, aes(x = HLM)) + 
+  geom_histogram(binwidth = 4, fill = "red", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution de l'occupation des HLM", x = "Pourcentage de personne dans les HLM", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+Le graphique montre la répartition du taux d'abstention dans les différents départements. On peut observer que la plupart des départements ont un taux d'abstention compris entre 15% et 25%.
+
+```{r}
+# Distribution du taux de pauvreté (TxPauv)
+ggplot(df, aes(x = TxPauv)) + 
+  geom_histogram(binwidth = 1, fill = "gray", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de pauvreté", x = "Taux de pauvreté", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+La plupart des départements ont un taux de pauvreté entre 10% et 20%.
+
+```{r}
+# Distribution du taux de chômage (txcho)
+ggplot(df, aes(x = txcho)) + 
+  geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution du taux de chômage", x = "Taux de chômage", y = "Nombre de départements") +
+  theme_minimal()
+```
+
+Le taux de chômage varie significativement entre les départements, avec des valeurs principalement comprises entre 6% et 15%.
+
+#UNE ETUDE SUR LE TOP 10 ET LE BOTTOM 10
+
+```{r}
+# Trier par taux d'abstention (du plus petit au plus grand)
+sorted_df <- df[order(df$txabs), ]
+
+# Sélectionner les 10 départements avec le plus faible taux d'abstention
+top_10_lowest <- head(sorted_df, 10)
+
+# Sélectionner les 10 départements avec le plus grand taux d'abstention
+top_10_highest <- tail(sorted_df, 10)
+
+# Combiner les deux groupes
+combined_df <- rbind(top_10_lowest, top_10_highest)
+
+# Créer un graphique en barres
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = txabs, fill = txabs)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 10 départements avec le plus grand & plus faible taux d'abstention",
+       x = "Départements",
+       y = "Taux d'abstention (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_gradient(low = "blue", high = "red")  # Palette de couleur pour illustrer les taux
+
+```
+
+# VOIR LA VARIATION DES VARIABLES DANS CES ZONES
+```{r}
+# Ajouter une colonne pour identifier chaque groupe
+top_10_lowest$group <- "Faible taux"
+top_10_highest$group <- "Fort taux"
+
+# Combiner les deux groupes
+combined_df <- rbind(top_10_lowest, top_10_highest)
+
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = TxPauv, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Taux de pauvreté dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "Taux de pauvreté (%)") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = HLM, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Nombre de HLM dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "HLM") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+```{r}
+# Liste des variables à utiliser pour générer les graphiques
+variables <- c("TxPauv", "HLM", "txcho", "Cadres", "NonDiplome", "Agri", "Ouvrier", "Artisant", "Salairemoy")
+
+# Noms des graphiques (titres) correspondants à chaque variable
+titles <- c("Taux de pauvreté", "Nombre de HLM", "Taux de chômage", "Pourcentage de cadres", 
+            "Pourcentage de non diplômés", "Pourcentage d'agriculteurs", "Pourcentage d'ouvriers", 
+            "Pourcentage d'artisans", "Salaire moyen")
+
+# Labels des axes y correspondants à chaque variable
+y_labels <- c("Taux de pauvreté (%)", "HLM", "Taux de chômage (%)", "Cadres (%)", 
+              "Non diplômé (%)", "Agriculteurs (%)", "Ouvriers (%)", 
+              "Artisans (%)", "Salaire moyen")
+
+# Boucle pour générer les graphiques
+for (i in seq_along(variables)) {
+  p <- ggplot(combined_df, aes_string(x = "reorder(Department, txabs)", y = variables[i], fill = "group")) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste(titles[i], "dans les départements \n avec le plus fort et plus faible taux d'abstention"),
+         x = "Départements",
+         y = y_labels[i]) +
+    coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+    theme_minimal() +
+    scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+  
+  print(p)  # Afficher le graphique à chaque itération
+}
+```
+
+
+
+
+
+```{r}
+# Créer un graphique en barres pour visualiser le taux de pauvreté
+ggplot(combined_df, aes(x = reorder(Department, txabs), y = HLM, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Nombre de HLM dans les départements \n avec le plus fort et plus faible taux d'abstention",
+       x = "Départements",
+       y = "HLM") +
+  coord_flip() +  # Inverser les axes pour une meilleure lisibilité
+  theme_minimal() +
+  scale_fill_manual(values = c("Faible taux" = "blue", "Fort taux" = "red"))  # Définir des couleurs pour chaque groupe
+```
+
+## Analyse bivariée
+
+```{r}
+# Relation entre le taux d'abstention et le taux de pauvreté
+ggplot(df, aes(x = TxPauv, y = txabs)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de pauvreté en fonction du Taux d'abstention", x = "Taux de pauvreté", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+Il y a une corrélation positive entre le taux de pauvreté et le taux d'abstention.
+
+```{r}
+# Relation entre le taux d'abstention et le taux de chômage
+ggplot(df, aes(x = txcho, y = txabs)) +
+  geom_point(color = "green") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Taux de chômage vs Taux d'abstention", x = "Taux de chômage", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+Il y a aussi une corrélation positive entre le taux de chômage et le taux d'abstention.
+
+```{r}
+# Relation entre le taux d'abstention et le salaire moyen
+ggplot(df, aes(x = Salairemoy, y = txabs)) +
+  geom_point(color = "purple") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Salaire moyen vs Taux d'abstention", x = "Salaire moyen", y = "Taux d'abstention") +
+  theme_minimal()
+```
+
+Il semble que les départements avec un salaire moyen plus bas aient tendance à avoir un taux d'abstention plus fort.
+
+```{r}
+# Sélectionner uniquement les colonnes numériques
+df_numeric <- df[, sapply(df, is.numeric)]
+
+# Créer la matrice de corrélation uniquement avec les variables numériques
+corr_matrix <- cor(df_numeric, use = "complete.obs")
+
+# Transformer la matrice de corrélation en format long (nécessaire pour ggplot2)
+melted_corr_matrix <- melt(corr_matrix)
+
+# Créer la heatmap avec ggplot2
+ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Corrélation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10)) +
+  coord_fixed() +
+  labs(title = "Matrice de corrélation")
+```
+
+## Données compositionnelles
+
+```{r}
+# Sélectionner les variables compositionnelles du jeu de données
+compositional_vars <- df[, c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")]
+
+# Appliquer la transformation CLR
+ilr_data <- ilr(compositional_vars)
+
+# Convertir le résultat en data frame
+ilr_data <- as.data.frame(ilr_data)
+
+# Afficher les premières lignes des données CLR
+head(ilr_data)
+```
+
+## données compositionnelles
+
+```{r}
+# Sélectionner les variables compositionnelles du jeu de données
+#compositional_vars <- df[, c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")]
+
+# Appliquer la transformation CLR
+#clr_data <- clr(compositional_vars)
+
+# Convertir le résultat en data frame
+#clr_df <- as.data.frame(clr_data)
+
+# Afficher les premières lignes des données CLR
+#head(clr_df)
+```
+
+```{r}
+# Sélectionner les autres variables quantitatives
+other_vars <- df[, c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho", "txabs")]
+
+# Combiner les données CLR transformées avec ces autres variables quantitatives
+final_df <- cbind(ilr_data, other_vars)
+
+# Afficher les premières lignes du data frame combiné
+head(final_df)
+```
+
+```{r}
+scaled_data <- scale(final_df[sapply(final_df, is.numeric)], scale = TRUE)
+# Convertir la matrice résultante en data frame
+scaled_data <- as.data.frame(scaled_data)
+head(scaled_data)
+```
+
+```{r}
+# Inverser la transformation ILR pour récupérer les proportions
+proportions_orig <- ilrInv(ilr_data)
+
+# Afficher les proportions originales
+print(proportions_orig)
+
+```
+
+
+```{r}
+## NOuvelle matrice de corrélation
+# Créer la matrice de corrélation uniquement avec les variables numériques
+corr_matrix <- cor(scaled_data, use = "complete.obs")
+
+# Transformer la matrice de corrélation en format long (nécessaire pour ggplot2)
+melted_corr_matrix <- melt(corr_matrix)
+
+# Créer la heatmap avec ggplot2
+ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Corrélation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10)) +
+  coord_fixed() +
+  labs(title = "Matrice de corrélation")
+```
+
+Il y a une forte correlation entre V1, V2, V3 et TxPauv, NonDiplomé, txcho, txabs
+
+```{r}
+# Réaliser une ACP sur toutes les variables (CLR + autres quantitatives)
+res.pca <- PCA(scaled_data, graph = TRUE)
+
+# Résumé des résultats de l'ACP
+summary(res.pca)
+```
+
+```{r}
+# Visualiser la variance expliquée par chaque composante (scree plot)
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 50))
+```
+
+```{r}
+# Extraire les variances expliquées par chaque composante
+eig.val <- res.pca$eig
+
+# Calculer la variance cumulée
+variance_expliquee <- eig.val[, 2]  # Prendre la deuxième colonne qui est la variance expliquée en pourcentage
+variance_cumulee <- cumsum(variance_expliquee)  # Calculer la somme cumulée
+
+# Créer un DataFrame pour visualiser
+df_variance <- data.frame(
+  Dim = 1:length(variance_expliquee),
+  Variance = variance_expliquee,
+  CumulativeVariance = variance_cumulee
+)
+
+# Visualiser la variance cumulée avec étiquettes sur les points
+ggplot(df_variance, aes(x = Dim)) +
+  geom_bar(aes(y = Variance), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeVariance, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeVariance), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeVariance, label = round(CumulativeVariance, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Scree plot et variance cumulée par chaque composante",
+    x = "Composantes principales",
+    y = "Pourcentage de variance expliquée (%)"
+  ) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Variance cumulée (%)")) +
+  theme_minimal()
+```
+
+Le scree plot montre que les trois premières composantes principales (Dim 1, Dim 2, Dim3) expliquent ensemble 78.2 % de la variance totale (33.8 % pour Dim 1, 26 % pour Dim 2 et 18.4% pour Dim3). Cela signifie que ces trois dimensions capturent l'essentiel de l'information dans les données, ce qui justifie leur utilisation pour une analyse simplifiée.
+
+```{r}
+# factories les variables sur le plan factoriel
+fviz_pca_var(res.pca, col.var = "contrib", 
+             gradient.cols = c("blue", "yellow", "red"),
+             repel = TRUE)
+```
+
+Le cercle des corrélations illustre les relations entre les variables et les deux premières composantes principales. Les variables PI, Cadres, et Agri contribuent fortement à Dim 1, tandis que Employe, Artisant, et Salairemoy dominent Dim 2. Les flèches proches représentent des corrélations entre les variables, par exemple, Artisant, Ouvrier, et txcho sont fortement corrélés et liés à des métiers manuels et des difficultés socio-économiques.
+
+### Analyse des variables :
+
+#### Variables fortement corrélées à Dim 1 :
+
+Les variables **PI**, **Cadres** contribuent fortement à Dim 1. Cela suggère que cette dimension est associée à des professions plus qualifiées ou bien rémunérées.
+
+#### Variables fortement corrélées à Dim 2 :
+
+Les variables **TxPauv**, **Artisant**, **txcho** et **Ouvrier** sont plus corrélées à Dim 2. Ces variables représentent davantage des difficultés socio-économiques.
+
+#### Corrélation entre variables :
+
+-   **Txcho** et **txabs** (taux de chômage et taux d’abstention) sont proches et dans la même direction, ce qui indique une corrélation positive entre ces variables. Plus le taux de chômage est élevé, plus le taux d'abstention pourrait l'être.
+-   **Salairemoy** et **Cadres** sont également proches, montrant une forte association entre ces deux variables, ce qui est logique car les cadres sont généralement mieux rémunérés.
+-   **Nondiplome** est dans une direction opposée à **Salairemoy** ce qui suggère que dans les zones à faible revenu, les non diplomé sont plus courant.
+
+#### Contribution des variables :
+
+-   Le code de couleur montre la contribution des variables à la variance expliquée par les deux dimensions.
+-   Les variables comme **PI**, **Cadres**, **Employe**, et **Agri** ont une forte contribution (orange/rouge).
+-   Les variables comme **TxPauv** et **HLM** contribuent moins à la variance (bleu/violet).
+
+### Résumé :
+
+-   **Dim 1** semble capturer des informations relatives à la position socio-économique favorable (professions qualifiées, revenus élevés).
+-   **Dim 2** est plus lié à des variables socio-économiques représentant des difficultés (chômage, pauvreté, métiers manuels).
+
+```{r}
+# Contribution des variables à la première composante (Dim 1)
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 10)
+```
+
+Les variables PI, Cadres, et Agri contribuent le plus à la première composante principale (Dim 1), indiquant que cette dimension capture surtout des informations liées aux professions intermédières, aux cadres et à l’agriculture.
+
+```{r}
+# Extraire les contributions des variables à la première composante (Dim 1)
+contrib_dim1 <- res.pca$var$contrib[, 1]  # Contributions à Dim 1
+
+# Créer un DataFrame pour les contributions
+df_contrib <- data.frame(
+  Variable = names(contrib_dim1),
+  Contribution = contrib_dim1
+)
+
+# Trier par ordre décroissant de contribution
+df_contrib <- df_contrib %>%
+  arrange(desc(Contribution))
+
+# Calculer la contribution cumulée
+df_contrib <- df_contrib %>%
+  mutate(CumulativeContribution = cumsum(Contribution))
+
+# Visualiser les contributions avec la ligne cumulée
+ggplot(df_contrib, aes(x = reorder(Variable, -Contribution))) +
+  geom_bar(aes(y = Contribution), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeContribution, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeContribution), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeContribution, label = round(CumulativeContribution, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Contribution cumulée des variables à la première composante (Dim 1)",
+    x = "Variables",
+    y = "Contribution (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X pour une meilleure lisibilité
+```
+
+### Analyse de la contribution cumulée des variables à la première composante (Dim 1)
+
+**Variance cumulée des variables les plus importantes :** - **V3, V2, Salaire Moyen, Non Diplomé, V4** totalisent une variance cumulée de **80.1%** pour la première dimension (Dim 1). - Ces variables jouent un rôle crucial dans la définition de Dim 1. Elles représentent la majeure partie de l'information capturée par cette composante.
+
+**Interprétation :** IL FAUT INTERPRETER V3, V2 avec les variables socio-économiques favorisés représentés par Dim 1.
+
+### Conclusion :
+
+```{r}
+# Extraire les contributions des variables à la deuxième composante (Dim 2)
+contrib_dim2 <- res.pca$var$contrib[, 2]  # Contributions à Dim 2
+
+# Créer un DataFrame pour les contributions
+df_contrib_dim2 <- data.frame(
+  Variable = names(contrib_dim2),
+  Contribution = contrib_dim2
+)
+
+# Trier par ordre décroissant de contribution
+df_contrib_dim2 <- df_contrib_dim2 %>%
+  arrange(desc(Contribution))
+
+# Calculer la contribution cumulée
+df_contrib_dim2 <- df_contrib_dim2 %>%
+  mutate(CumulativeContribution = cumsum(Contribution))
+
+# Visualiser les contributions avec la ligne cumulée
+ggplot(df_contrib_dim2, aes(x = reorder(Variable, -Contribution))) +
+  geom_bar(aes(y = Contribution), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeContribution, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeContribution), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeContribution, label = round(CumulativeContribution, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Contribution cumulée des variables à la 2ème composante (Dim 2)",
+    x = "Variables",
+    y = "Contribution (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X pour une meilleure lisibilité
+
+```
+
+### Analyse de la contribution cumulée des variables à la deuxième composante (Dim 2)
+
+Les variables TxPAuv, txcho, txabs dominent la contribution à la deuxième composante principale (Dim 2), indiquant que cette dimension est principalement axée .
+
+**Interprétation :**
+
+### Conclusion :
+
+Dim 2 capture principalement des informations liées aux niveau de vie dans chaque département. Les variables **TxPAuv, txcho, txabs** y jouent un rôle prépondérant, reflétant une dimension centrée sur les travailleurs et le revenu moyen.
+
+```{r}
+# Extraire les contributions des variables à la troisième composante (Dim 3)
+contrib_dim3 <- res.pca$var$contrib[, 3]  # Contributions à Dim 3
+
+# Créer un DataFrame pour les contributions
+df_contrib_dim3 <- data.frame(
+  Variable = names(contrib_dim3),
+  Contribution = contrib_dim3
+)
+
+# Trier par ordre décroissant de contribution
+df_contrib_dim3 <- df_contrib_dim3 %>%
+  arrange(desc(Contribution))
+
+# Calculer la contribution cumulée
+df_contrib_dim3 <- df_contrib_dim3 %>%
+  mutate(CumulativeContribution = cumsum(Contribution))
+
+# Visualiser les contributions avec la ligne cumulée
+ggplot(df_contrib_dim3, aes(x = reorder(Variable, -Contribution))) +
+  geom_bar(aes(y = Contribution), stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = CumulativeContribution, group = 1), color = "red", size = 1) +
+  geom_point(aes(y = CumulativeContribution), color = "red", size = 2) +
+  geom_text(aes(y = CumulativeContribution, label = round(CumulativeContribution, 1)), vjust = -0.5, color = "red") +
+  labs(
+    title = "Contribution cumulée des variables à la troisième composante (Dim 3)",
+    x = "Variables",
+    y = "Contribution (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Incliner le texte de l'axe X pour une meilleure lisibilité
+```
+
+```{r}
+# Filtrer les individus avec cos² > 50%
+ind_cos2 <- apply(res.pca$ind$cos2, 1, max) > 0.5
+
+# Filtrer les variables avec cos² > 50%
+var_cos2 <- apply(res.pca$var$cos2, 1, max) > 0.5
+
+# Créer un graphique combiné des individus et des variables
+fviz_pca_biplot(res.pca,
+                select.ind = list(cos2 = 0.5), # Sélectionner les individus avec cos² > 50%
+                select.var = list(cos2 = 0.5), # Sélectionner les variables avec cos² > 50%
+                repel = TRUE, # Éviter le chevauchement des étiquettes
+                title = "Biplot des Individus et des Variables (cos² > 50%)",
+                col.ind = "blue", # Couleur des individus
+                col.var = "red" # Couleur des variables
+                )
+```
+
+### Interprétation des groupes d’individus :
+
+-   Les individus proches des variables **Cadres**, **Salairemoy**, et **PI** semblent avoir des niveaux de qualification et de revenu plus élevés.
+
+-   Les individus situés à l'extrémité gauche, sont plus associés à **Agri** et **NonDiplome**, ce qui pourrait indiquer qu'ils appartiennent à des secteurs moins qualifiés ou agricoles.
+
+-   Ceux au centre sont probablement un mélange de plusieurs caractéristiques, car ils sont moins fortement influencés par les variables extrêmes.
+
+# REGRESSION
+
+```{r}
+acp <- prcomp(final_df, scale = T)
+acp
+```
+
+```{r}
+summary(acp)
+```
+
+```{r}
+composantes <- as.data.frame(acp$x)
+print(composantes)
+```
+
+```{r}
+library(questionr)
+composantes_principales <- composantes[,1:4]
+composantes_principales <- cbind(composantes_principales,final_df$txabs)
+composantes_principales <- rename.variable(composantes_principales,"final_df$txabs","txabs")
+```
+
+```{r}
+library(glmnet)
+x <- model.matrix(txabs ~ ., data = composantes_principales)[, -1]
+y <- composantes_principales$txabs
+lasso_model <- glmnet(x, y, alpha = 1)  # alpha = 1 pour Lasso
+plot(lasso_model, label = T)
+
+```
+
+```{r}
+plot(lasso_model,xvar="lambda",label=TRUE)
+```
+
+Le trais de gauche correspond à la valeur lambda qui minimise l’erreur quadratique Celui de droite correspond à la plus grande valeur de lambda telle que l’erreur ne dépasse pas l’erreur minimale +1 ecart type estimé de cette erreur
+
+```{r}
+lassoCV <- cv.glmnet(x,y,alpha=1)
+plot(lassoCV)
+```
+
+Afficher Lasso Lambda
+
+```{r}
+print(lassoCV$lambda.min)
+print(lassoCV$lambda.1se)
+predict(lassoCV, newx = x[96:96,],
+        s="lambda.min")
+predict(lassoCV, newx = x[96:96,], s="lambda.1se")
+```
+
+```{r}
+# Récupérer les coefficients pour le meilleur lambda (lambda.min)
+coef_lasso <- coef(lassoCV, s = "lambda.min")
+print(coef_lasso)
+```
+
+```{r}
+# Calculer la MSE (Erreur quadratique moyenne) pour les prédictions
+MSE_lasso <- mean((y - predict(lassoCV, newx=x, s=lassoCV$lambda.min))^2)
+R_squared <- cor(y, predict(lassoCV, newx=x, s=lassoCV$lambda.min))
+
+# Afficher le MSE
+print(MSE_lasso)
+print(R_squared)
+```
+
+```{r}
+# Prédictions avec le modèle Lasso
+predictions_lasso <- predict(lassoCV, newx = as.matrix(x), s = lassoCV$lambda.min)
+
+# Créer un data frame pour combiner les valeurs réelles et les prédictions
+df_comparison <- data.frame(
+  Valeurs_Réelles = y,               # Les valeurs réelles
+  Valeurs_Prédites = as.numeric(predictions_lasso)  # Convertir en vecteur numérique si nécessaire
+)
+
+# Visualiser les valeurs réelles vs prédictions
+library(ggplot2)
+
+ggplot(df_comparison, aes(x = Valeurs_Réelles, y = Valeurs_Prédites)) +
+  geom_point(color = "blue") +  # Points pour chaque observation
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +  # Ligne y=x pour comparer
+  labs(title = "Comparaison des valeurs réelles et prédites (Régression Lasso)",
+       x = "Valeurs réelles",
+       y = "Valeurs prédites") +
+  theme_minimal() +
+  coord_equal()  # Assure une échelle égale sur les axes
+
+```
+
+```{r}
+# Afficher les premières lignes du tableau
+head(df_comparison)
+```
+
+# RANDOM FOREST
+
+```{r}
+library(randomForest)
+model_rf <- randomForest(txabs ~ ., data = composantes_principales[, -1], ntree = 500)
+model_rf
+```
+
+```{r}
+# Supprimer la variable cible de newdata (df)
+x <- model.matrix(txabs ~ ., data = composantes_principales)[, -1]
+y <- composantes_principales$txabs
+predictions <- predict(model_rf, newdata = x)
+
+# Afficher les prédictions
+head(predictions)
+```
+
+```{r}
+# Calculer l'erreur quadratique moyenne (RMSE)
+rmse <- sqrt(mean((y - predictions)^2))
+print(paste("RMSE:", rmse))
+
+# Calculer le R²
+r_squared <- cor(y, predictions)^2
+print(paste("R²:", r_squared))
+
+```
+
+```{r}
+# Afficher l'importance des variables
+importance(model_rf)
+
+# Afficher graphiquement l'importance des variables
+varImpPlot(model_rf)
+```
+
+# Je le refait avec un train et test set
+
+```{r}
+# Définir la proportion pour le jeu d'entraînement (par exemple 70%)
+train_proportion <- 0.7
+
+# Créer un vecteur logique pour diviser les données
+train_indices <- sample(1:nrow(composantes_principales), size = round(train_proportion * nrow(composantes_principales)))
+
+# Jeu d'entraînement (70% des données)
+train_set <- composantes_principales[train_indices, ]
+
+# Jeu de test (le reste des données)
+test_set <- composantes_principales[-train_indices, ]
+```
+
+# Maintenant je crée le modèle
+
+```{r}
+model_rf <- randomForest(txabs ~ PC1 + PC2 + PC3 + PC4, data = train_set, ntree = 50)
+
+# Afficher le modèle
+print(model_rf)
+```
+
+```{r}
+# Prédire sur le jeu de test
+predictions <- predict(model_rf, newdata = test_set)
+
+# Afficher les premières prédictions
+head(predictions)
+```
+
+```{r}
+# Calculer l'erreur quadratique moyenne (RMSE) sur le jeu de test
+rmse <- sqrt(mean((test_set$txabs - predictions)^2))
+print(paste("RMSE:", rmse))
+
+# Calculer le R² sur le jeu de test
+r_squared <- cor(test_set$txabs, predictions)^2
+print(paste("R²:", r_squared))
+
+```
+
+```{r}
+library(ggplot2)
+
+# Créer un data frame pour comparer les valeurs réelles et prédites
+df_comparison_rf <- data.frame(
+  Valeurs_Réelles = test_set$txabs,      # Valeurs réelles
+  Valeurs_Prédites = predictions         # Valeurs prédites
+)
+
+# Créer le graphique
+ggplot(df_comparison_rf, aes(x = Valeurs_Réelles, y = Valeurs_Prédites)) +
+  geom_point(color = "blue", alpha = 0.6) +  # Points de dispersion
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +  # Ligne de référence y=x
+  labs(title = "Comparaison des valeurs réelles et prédites (Modèle Random Forest)",
+       x = "Valeurs réelles",
+       y = "Valeurs prédites") +
+  theme_minimal() +
+  coord_equal()  # Échelle égale sur les deux axes
+
+```
+
+# J'ESSAIE UN CROSS VALIDATION
+
+```{r}
+library(caret)
+
+# Définir les contrôles pour Leave-One-Out Cross-Validation
+train_control <- trainControl(method = "LOOCV")
+
+# Ajuster un modèle de régression (par exemple Random Forest)
+model <- train(txabs ~ . , data = train_set, 
+               method = "rf",  # Random Forest
+               trControl = train_control)
+
+# Afficher les résultats du modèle
+print(model)
+
+```
+
+```{r}
+# Faire des prédictions sur l'ensemble des données
+predictions <- predict(model, newdata = test_set)
+
+# Créer un data frame pour comparer les valeurs réelles et prédites
+df_comparison <- data.frame(
+  Valeurs_Réelles = test_set$txabs,  # Valeurs réelles
+  Valeurs_Prédites = predictions           # Valeurs prédites par le modèle
+)
+
+# Afficher un aperçu des résultats
+head(df_comparison)
+
+# Calculer l'erreur quadratique moyenne (RMSE)
+rmse <- sqrt(mean((df_comparison$Valeurs_Réelles - df_comparison$Valeurs_Prédites)^2))
+print(paste("RMSE:", rmse))
+
+# Calculer le R²
+r_squared <- cor(df_comparison$Valeurs_Réelles, df_comparison$Valeurs_Prédites)^2
+print(paste("R²:", r_squared))
+
+```
+
+```{r}
+# Visualiser la comparaison entre les valeurs réelles et prédites
+ggplot(df_comparison, aes(x = Valeurs_Réelles, y = Valeurs_Prédites)) +
+  geom_point(color = "blue", alpha = 0.6) +  # Points de dispersion
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +  # Ligne y = x
+  labs(title = "Comparaison des valeurs réelles et prédites (Random Forest LOOCV)",
+       x = "Valeurs réelles",
+       y = "Valeurs prédites") +
+  theme_minimal() +
+  coord_equal()
+
+
+```
+
+```{r}
+# Visualiser la comparaison entre les valeurs réelles et prédites
+ggplot(df_comparison, aes(x = Valeurs_Réelles, y = Valeurs_Prédites)) +
+  geom_point(color = "blue", alpha = 0.6) +  # Points de dispersion
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +  # Ligne y = x
+  labs(title = "Comparaison des valeurs réelles et prédites (Random Forest LOOCV)",
+       x = "Valeurs réelles",
+       y = "Valeurs prédites") +
+  theme_minimal() +
+  coord_equal()
+```
+
+```{r}
+library(xgboost)
+library(caret)
+
+# Définir les contrôles pour une validation croisée à 10-folds
+train_control <- trainControl(method = "cv", number = 10)
+
+# Entraîner un modèle XGBoost avec la validation croisée
+model <- train(
+  txabs ~ ., 
+  data = data_abs, 
+  method = "xgbTree",  # XGBoost method
+  trControl = train_control,
+  tuneGrid = expand.grid(
+    nrounds = 100,      # Nombre d'arbres
+    max_depth = 6,      # Profondeur des arbres
+    eta = 0.1,          # Taux d'apprentissage
+    gamma = 0,          # Critère de séparation
+    colsample_bytree = 0.8,
+    min_child_weight = 1,
+    subsample = 0.8
+  )
+)
+
+# Afficher les résultats du modèle
+print(model)
+
+```
+
+```{r}
+# Charger les bibliothèques nécessaires
+library(xgboost)
+library(caret)
+
+# Exemple de dataframe fictif
+# data_abs <- ... # Assurez-vous que votre dataframe est chargé ici
+
+# Convertir les colonnes nécessaires en numériques si nécessaire
+# (utiliser les instructions de conversion si besoin)
+
+# Séparer les données en ensembles d'entraînement et de test
+set.seed(123)  # Pour la reproductibilité
+train_index <- createDataPartition(data_abs_numeric$txabs, p = 0.8, list = FALSE)
+train_set <- data_abs_numeric[train_index, ]
+test_set <- data_abs_numeric[-train_index, ]
+
+# Créer les matrices d'entraînement et de test
+train_matrix <- as.matrix(train_set[, -c(1, 13)])  # Excluez les colonnes non pertinentes
+train_labels <- train_set$txabs
+
+test_matrix <- as.matrix(test_set[, -c(1, 13)])  # Excluez les colonnes non pertinentes
+test_labels <- test_set$txabs
+
+# Convertir les données en un objet DMatrix
+dtrain <- xgb.DMatrix(data = train_matrix, label = train_labels)
+dtest <- xgb.DMatrix(data = test_matrix, label = test_labels)
+
+# Définir les paramètres de xgboost
+params <- list(
+  objective = "reg:squarederror",
+  eta = 0.1,
+  max_depth = 6,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+# Entraîner le modèle
+model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100
+)
+
+# Faire des prédictions sur le jeu de test
+predictions <- predict(model, dtest)
+
+# Calculer le R²
+r_squared <- cor(test_labels, predictions)^2
+print(paste("R²:", r_squared))
+```
+
+# ANOTHER TRY OF RANDOM FOREST
+
+```{r}
+# Charger les bibliothèques nécessaires
+library(randomForest)
+library(caret)
+
+# Exemple de dataframe fictif (data_abs avec la colonne cible txabs)
+# data_abs <- ... # Assurez-vous que votre dataframe est chargé ici
+
+# Diviser les données en ensembles d'entraînement et de test
+set.seed(123)  # Pour la reproductibilité
+train_index <- createDataPartition(data_abs$txabs, p = 0.8, list = FALSE)
+train_set <- final_data_abs[train_index, ]
+test_set <- final_data_abs[-train_index, ]
+
+# Entraîner un modèle Random Forest sur l'ensemble d'entraînement
+model_rf <- randomForest(txabs ~ ., data = train_set, ntree = 500)
+
+```
+
+```{r}
+# Faire des prédictions sur le jeu de test
+predictions <- predict(model_rf, newdata = test_set)
+
+# Calculer l'erreur quadratique moyenne (MSE)
+mse <- mean((test_set$txabs - predictions)^2)
+print(paste("MSE:", mse))
+
+# Calculer la racine de l'erreur quadratique moyenne (RMSE)
+rmse <- sqrt(mse)
+print(paste("RMSE:", rmse))
+
+# Calculer le coefficient de détermination (R²)
+r_squared <- cor(test_set$txabs, predictions)^2
+print(paste("R²:", r_squared))
+```
+
+```{r}
+# Vérifier que les colonnes de test_set correspondent à celles de l'entraînement
+# Exclure la colonne cible txabs du test_set avant de faire les prédictions
+test_set_clean <- test_set[, colnames(test_set) %in% colnames(train_set)]
+test_set_clean <- test_set_clean[, -which(names(test_set_clean) == "txabs")]
+
+# Faire des prédictions
+predictions <- predict(model_rf_cv, newdata = test_set_clean)
+
+# Calculer le RMSE
+rmse <- sqrt(mean((test_set$txabs - predictions)^2))
+print(paste("RMSE:", rmse))
+
+# Calculer le R²
+r_squared <- cor(test_set$txabs, predictions)^2
+print(paste("R²:", r_squared))
+
+```
+
+# LE CLUSTERING
+
+Mise en place des kmeans \## Méthode du coude
+
+```{r}
+# Détermination du nombre optimal de clusters avec la méthode du coude
+fviz_nbclust(scaled_data, kmeans, method = "wss") + 
+    geom_vline(xintercept = 4, linetype = 2) +  # Ajuster le xintercept selon le résultat
+    labs(title = "Détermination du Nombre Optimal de Clusters",
+         x = "Nombre de Clusters",
+         y = "Somme des Carrés Intra-Cluster (WSS)") +
+    theme_minimal()
+```
+
+Le nombre optimal de cluster avec la méthode du coude est de 4.
+
+## Méthode de silhouette
+
+```{r}
+if (!require(purrr)) install.packages("purrr")
+library(purrr)
+
+# function to compute average silhouette for k clusters
+avg_sil <- function(k) {
+  km.res <- kmeans(scaled_data, centers = k, nstart = 25)
+  ss <- silhouette(km.res$cluster, dist(df))
+  mean(ss[, 3])
+}
+
+# Compute and plot wss for k = 2 to k = 15
+k.values <- 2:15
+
+# extract avg silhouette for 2-15 clusters
+avg_sil_values <- map_dbl(k.values, avg_sil)
+
+plot(k.values, avg_sil_values,
+     type = "b", pch = 19, frame = FALSE, 
+     xlab = "Nombre de clusters K",
+     ylab = "Silhouettes Moyennes")
+
+
+fviz_nbclust(final_df, kmeans, method = "silhouette") +
+    labs(title = "Détermination du Nombre Optimal de Clusters avec la Méthode de la Silhouette",
+         x = "Nombre de Clusters",
+         y = "Largeur Moyenne de la Silhouette") +
+    theme_minimal()
+```
+
+Le nombre optimal avec la méthode de la silhouette est de 2.
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+kmeans_result <- kmeans(scaled_data, centers = 4, nstart = 25)
+fviz_cluster(kmeans_result, data = final_df)
+```
+
+```{r}
+set.seed(123)  # Pour la reproductibilité
+k2 <- kmeans(scaled_data, centers = 2, nstart = 25)
+k3 <- kmeans(scaled_data, centers = 3, nstart = 25)
+k5 <- kmeans(scaled_data, centers = 5, nstart = 25)
+
+# plots to compare
+p1 <- fviz_cluster(k2, geom = "point", data = scaled_data) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = scaled_data) + ggtitle("k = 3")
+p3 <- fviz_cluster(k5, geom = "point",  data = scaled_data) + ggtitle("k = 5")
+p4 <- fviz_cluster(kmeans_result, geom = "point",  data = scaled_data) + ggtitle("k = 4")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3,p4, nrow = 2)
+```
+
+Conclusion: Avec k = 2, les groupes sont trop larges, ne captant pas toute la diversité des individus. k = 3 semble fournir un bon compromis entre complexité et interprétabilité. k = 4 offre une segmentation plus détaillée, potentiellement utile pour des analyses plus fines. k = 5 commence à fragmenter excessivement les données, ce qui pourrait nuire à la clarté des résultats.
+
+Globalement, k = 3 ou k = 4 semblent être des choix raisonnables pour capturer la structure des données tout en maintenant une bonne interprétabilité
+
+```{r}
+# Ajouter la colonne de cluster 
+df$cluster <- factor(kmeans_result$cluster)
+```
+
+```{r}
+# Liste des variables quantitatives à visualiser (en excluant la colonne 'cluster')
+liste_variable_quanti <- c("PI", "Cadres", "Agri", "Employe", "Artisant", "Ouvrier", "TxPauv", "Salairemoy", "HLM", "NonDiplome", "txcho", "txabs")
+
+# Pour chaque variable quantitative, créer un boxplot par rapport à cluster
+for (col in liste_variable_quanti) {
+  p <- ggplot(df, aes(x = cluster, y = .data[[col]], fill = cluster)) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "Set1") +  # Utiliser une palette de couleurs
+    labs(title = paste("Boxplot de", col, "par cluster"), x = "Cluster", y = col) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Incliner le texte de l'axe X
+          plot.title = element_text(hjust = 0.5))  # Centrer le titre
+
+  # Afficher le boxplot
+  print(p)
+}
+```
+
+```{r}
+# Calculer les moyennes des variables quantitatives par cluster
+moyennes_par_cluster <- df %>%
+  group_by(cluster) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE))
+
+# Afficher les moyennes directement, car les valeurs sont déjà en pourcentage
+for (i in 1:nrow(moyennes_par_cluster)) {
+  cat("Cluster", moyennes_par_cluster$cluster[i], ":\n")
+  cat(paste(names(moyennes_par_cluster)[-1], ":",
+            round(moyennes_par_cluster[i, -1], 2), "%", collapse = ", "), "\n\n")
+}
+```
+
+```{r}
+# Charger le package
+library(kableExtra)
+
+# Calculer les moyennes des variables quantitatives par cluster
+moyennes_par_cluster <- df %>%
+  group_by(cluster) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE))
+
+# Créer un tableau formaté
+kbl(moyennes_par_cluster, caption = "Moyenne des variables quantitatives par cluster (%)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+Interprétation générale : Cluster 2 semble représenter une population plus qualifiée avec des niveaux socio-économiques plus élevés (plus de cadres, salaire moyen plus élevé, faible taux de chômage, moins de non-diplômés), et un taux d'abstention plus faible. Clusters 1 et 3 ont une proportion plus élevée d'ouvriers, d'employés, et de non-diplômés, des salaires plus bas et des taux de chômage plus élevés. Cela pourrait expliquer les taux d'abstention plus élevés observés dans ces clusters. Cluster 4 présente un profil intermédiaire avec une part relativement élevée de professions intermédiaires (PI), d'employés et de cadres, et des conditions socio-économiques modérées.
+
+Synthèse : Le Cluster 2 se démarque par des conditions socio-économiques favorables (faible pauvreté, chômage bas, et salaires élevés), et un faible taux d'abstention, tandis que les Clusters 1 et 3 montrent des populations plus vulnérables avec un taux d'abstention plus élevé.
+
+```{r}
+# Calculer les moyennes des variables quantitatives par cluster
+moyennes_par_cluster <- df %>%
+  group_by(cluster) %>%
+  summarise(across(all_of(liste_variable_quanti), mean, na.rm = TRUE)) %>%
+  pivot_longer(cols = -cluster, names_to = "variable", values_to = "mean_value")
+```
+
+```{r}
+library(RColorBrewer)
+
+ggplot(moyennes_par_cluster, aes(x = reorder(variable, mean_value), y = mean_value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Moyennes des variables quantitatives par cluster", x = "Variables", y = "Moyennes (%)") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set3") +  # Palette de couleurs
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "none") +  # Supprimer la légende
+  facet_wrap(~ cluster, scales = "free")  # Échelle libre par cluster
+```
+Interprétation générale :
+Cluster 2 semble représenter une population plus qualifiée avec des niveaux socio-économiques plus élevés (plus de cadres, salaire moyen plus élevé, faible taux de chômage, moins de non-diplômés), et un taux d'abstention plus faible.
+Clusters 1 et 3 ont une proportion plus élevée d'ouvriers, d'employés, et de non-diplômés, des salaires plus bas et des taux de chômage plus élevés. Cela pourrait expliquer les taux d'abstention plus élevés observés dans ces clusters, surtout pour cluster 1.
+Cluster 4 présente un profil intermédiaire avec une part relativement élevée de professions intermédiaires (PI), d'employés et de cadres, et des conditions socio-économiques modérées.
+
+Synthèse :
+Le Cluster 2 se démarque par des conditions socio-économiques favorables (faible pauvreté, chômage bas, et salaires élevés), et un faible taux d'abstention, tandis que les Clusters 1 et 3 montrent des populations plus vulnérables avec un taux d'abstention plus élevé. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
