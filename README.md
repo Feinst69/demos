@@ -45,24 +45,24 @@ L'exploration des données a été réalisée pour comprendre la structure, la d
 
 - **Chargement des Données :**  
   Les données ont été importées à partir d'un fichier CSV.
-- **Inspection des données**
-- **VIsialisation Initiale**
+- **Inspection des données**  
+- **VIsialisation Initiale**  
 
 ### Analyse des variables
-L'analyse des variables a permis d'identifier les relations significatives et d'évaluer l'importance de chaque variable par rapport au taux d'abstention.
--**Gestions des variables compositionnels**
--**Coorélations**
+L'analyse des variables a permis d'identifier les relations significatives et d'évaluer l'importance de chaque variable par rapport au taux d'abstention.  
+-**Gestions des variables compositionnels**  
+-**Coorélations**  
 
 ### Reduction des données
-La réduction des dimensions a été effectuée pour simplifier les données tout en conservant l'information pertinente.
--**Analyse en Composantes Principles (ACP)**
--**Sélection des Composantes Principales**
+La réduction des dimensions a été effectuée pour simplifier les données tout en conservant l'information pertinente.  
+-**Analyse en Composantes Principles (ACP)**  
+-**Sélection des Composantes Principales**  
 
 ### Modélisation des régressions par rapport au taux d'abstention
--**Régression en Lasso**
--**Modèle Random Forest**
+-**Régression en Lasso**  
+-**Modèle Random Forest**  
 
-### Création de cluster
--**Méthode du Coude**
--**Clustering K-means**
--**Visualisation du Cluster**
+### Création de cluster  
+-**Méthode du Coude**  
+-**Clustering K-means**  
+-**Visualisation du Cluster**  
