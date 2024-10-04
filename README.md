@@ -58,11 +58,13 @@ La réduction des dimensions a été effectuée pour simplifier les données tou
 -**Analyse en Composantes Principles (ACP)**  
 -**Sélection des Composantes Principales**  
 
-### Modélisation des régressions par rapport au taux d'abstention
+### Modélisation des régressions par rapport au taux d'abstention  
+Deux modèles de régression ont été appliqués pour prédire le taux d'abstention.  
 -**Régression en Lasso**  
 -**Modèle Random Forest**  
 
 ### Création de cluster  
+La création de clusters a été réalisée pour identifier des groupes similaires au sein des données.  
 -**Méthode du Coude**  
 -**Clustering K-means**  
 -**Visualisation du Cluster**  
